@@ -115,7 +115,7 @@ class OpenAIHelper:
             self.reset_chat_history(chat_id)
         return len(self.conversations[chat_id]), self.__count_tokens(self.conversations[chat_id])
 
-    async def get_chat_response(self, chat_id: int, query: str) -> tuple[str, str]:
+    async def get_chat_response(self, chat_id: int, query: str, model='gpt-3.5-turbo') -> tuple[str, str]:
         """
         Gets a full response from the GPT model.
         :param chat_id: The chat ID
@@ -123,7 +123,7 @@ class OpenAIHelper:
         :return: The answer from the model and the number of tokens used
         """
         plugins_used = ()
-        response = await self.__common_get_chat_response(chat_id, query)
+        response = await self.__common_get_chat_response(chat_id, query, model=model)
         if self.config['enable_functions']:
             response, plugins_used = await self.__handle_function_call(chat_id, response)
             if is_direct_result(response):
@@ -158,7 +158,7 @@ class OpenAIHelper:
 
         return answer, response.usage.total_tokens
 
-    async def get_chat_response_stream(self, chat_id: int, query: str):
+    async def get_chat_response_stream(self, chat_id: int, query: str, model='gpt-3.5-turbo'):
         """
         Stream response from the GPT model.
         :param chat_id: The chat ID
@@ -166,7 +166,7 @@ class OpenAIHelper:
         :return: The answer from the model and the number of tokens used, or 'not_finished'
         """
         plugins_used = ()
-        response = await self.__common_get_chat_response(chat_id, query, stream=True)
+        response = await self.__common_get_chat_response(chat_id, query, stream=True, model=model)
         if self.config['enable_functions']:
             response, plugins_used = await self.__handle_function_call(chat_id, response, stream=True)
             if is_direct_result(response):
@@ -201,8 +201,10 @@ class OpenAIHelper:
         retry=retry_if_exception_type(openai.RateLimitError),
         wait=wait_fixed(20),
         stop=stop_after_attempt(3)
-    )
-    async def __common_get_chat_response(self, chat_id: int, query: str, stream=False):
+        )
+    async def __common_get_chat_response(self, chat_id: int, query: str, stream=False, model='gpt-3.5-turbo'):
+        if model is None:
+            model = 'gpt-3.5-turbo'
         """
         Request a response from the GPT model.
         :param chat_id: The chat ID
@@ -235,16 +237,16 @@ class OpenAIHelper:
                     logging.warning(f'Error while summarising chat history: {str(e)}. Popping elements instead...')
                     self.conversations[chat_id] = self.conversations[chat_id][-self.config['max_history_size']:]
 
-            common_args = {
-                'model': self.config['model'],
-                'messages': self.conversations[chat_id],
-                'temperature': self.config['temperature'],
-                'n': self.config['n_choices'],
-                'max_tokens': self.config['max_tokens'],
-                'presence_penalty': self.config['presence_penalty'],
-                'frequency_penalty': self.config['frequency_penalty'],
-                'stream': stream
-            }
+            return await openai.ChatCompletion.acreate(
+                model=model,  # self.config['model']
+                messages=self.conversations[chat_id],
+                temperature=self.config['temperature'],
+                n=self.config['n_choices'],
+                max_tokens=self.config['max_tokens'],
+                presence_penalty=self.config['presence_penalty'],
+                frequency_penalty=self.config['frequency_penalty'],
+                stream=stream
+            )
 
             if self.config['enable_functions']:
                 functions = self.plugin_manager.get_functions_specs()

@@ -21,6 +21,7 @@ from utils import is_group_chat, get_thread_id, message_text, wrap_with_indicato
 from openai_helper import OpenAIHelper, localized_text
 from usage_tracker import UsageTracker
 
+user_model_selection = []
 
 class ChatGPTTelegramBot:
     """
@@ -39,6 +40,8 @@ class ChatGPTTelegramBot:
         self.commands = [
             BotCommand(command='help', description=localized_text('help_description', bot_language)),
             BotCommand(command='reset', description=localized_text('reset_description', bot_language)),
+            BotCommand(command='model', description=localized_text('model_description', bot_language)),
+            BotCommand(command='image', description=localized_text('image_description', bot_language)),
             BotCommand(command='stats', description=localized_text('stats_description', bot_language)),
             BotCommand(command='resend', description=localized_text('resend_description', bot_language))
         ]
@@ -75,6 +78,31 @@ class ChatGPTTelegramBot:
                 localized_text('help_text', bot_language)[2]
         )
         await update.message.reply_text(help_text, disable_web_page_preview=True)
+
+    async def model(self, update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
+        """
+        Shows the model menu.
+        """
+        chat_id = update.effective_chat.id
+        user_id = update.message.from_user.id
+        current_model = user_model_selection[user_id]
+
+        if current_model is None:
+            msg = 'Current model: gpt-3.5-turbo'
+        else:
+            msg = f'Current model: {current_model}'
+
+        reply_markup = InlineKeyboardMarkup([[
+            InlineKeyboardButton(text="gpt-3.5-turbo", callback_data="model_gpt-3.5-turbo"),
+            InlineKeyboardButton(text="gpt-4", callback_data="model_gpt-4")
+        ]])
+        await update.effective_message.reply_text(
+                message_thread_id=get_thread_id(update),
+                reply_to_message_id=get_reply_to_message_id(self.config, update),
+                text=f"{msg}",
+                parse_mode=constants.ParseMode.MARKDOWN,
+                reply_markup=reply_markup
+        )
 
     async def stats(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
@@ -401,7 +429,7 @@ class ChatGPTTelegramBot:
                         )
                 else:
                     # Get the response of the transcript
-                    response, total_tokens = await self.openai.get_chat_response(chat_id=chat_id, query=transcript)
+                    response, total_tokens = await self.openai.get_chat_response(chat_id=chat_id, query=transcript, model=user_model_selection[user_id])
 
                     self.usage[user_id].add_chat_tokens(total_tokens, self.config['token_price'])
                     if str(user_id) not in allowed_user_ids and 'guests' in self.usage:
@@ -482,7 +510,7 @@ class ChatGPTTelegramBot:
                     message_thread_id=get_thread_id(update)
                 )
 
-                stream_response = self.openai.get_chat_response_stream(chat_id=chat_id, query=prompt)
+                stream_response = self.openai.get_chat_response_stream(chat_id=chat_id, query=prompt, model=user_model_selection[user_id])
                 i = 0
                 prev = ''
                 sent_message = None
@@ -562,7 +590,7 @@ class ChatGPTTelegramBot:
             else:
                 async def _reply():
                     nonlocal total_tokens
-                    response, total_tokens = await self.openai.get_chat_response(chat_id=chat_id, query=prompt)
+                    response, total_tokens = await self.openai.get_chat_response(chat_id=chat_id, query=prompt, model=user_model_selection[user_id])
 
                     if is_direct_result(response):
                         return await handle_direct_result(self.config, update, response)
@@ -682,7 +710,7 @@ class ChatGPTTelegramBot:
 
                 unavailable_message = localized_text("function_unavailable_in_inline_mode", bot_language)
                 if self.config['stream']:
-                    stream_response = self.openai.get_chat_response_stream(chat_id=user_id, query=query)
+                    stream_response = self.openai.get_chat_response_stream(chat_id=user_id, query=query, model=user_model_selection[user_id])
                     i = 0
                     prev = ''
                     backoff = 0
@@ -750,7 +778,7 @@ class ChatGPTTelegramBot:
                                                             parse_mode=constants.ParseMode.MARKDOWN)
 
                         logging.info(f'Generating response for inline query by {name}')
-                        response, total_tokens = await self.openai.get_chat_response(chat_id=user_id, query=query)
+                        response, total_tokens = await self.openai.get_chat_response(chat_id=user_id, query=query, model=user_model_selection[user_id])
 
                         if is_direct_result(response):
                             cleanup_intermediate_files(response)
@@ -773,6 +801,22 @@ class ChatGPTTelegramBot:
                                               constants.ChatAction.TYPING, is_inline=True)
 
                 add_chat_request_to_usage_tracker(self.usage, self.config, user_id, total_tokens)
+            elif callback_data == "model_gpt-3.5-turbo":
+                current_model = 'gpt-3.5-turbo'
+                user_model_selection[user_id] = current_model
+                await update.effective_message.reply_text(
+                        message_thread_id=get_thread_id(update),
+                        text=f"Current model: {current_model}",
+                        parse_mode=constants.ParseMode.MARKDOWN
+                )
+            elif callback_data == "model_gpt-4":
+                current_model = 'gpt-4'
+                user_model_selection[user_id] = current_model
+                await update.effective_message.reply_text(
+                        message_thread_id=get_thread_id(update),
+                        text=f"Current model: {current_model}",
+                        parse_mode=constants.ParseMode.MARKDOWN
+                )
 
         except Exception as e:
             logging.error(f'Failed to respond to an inline query via button callback: {e}')
@@ -856,6 +900,7 @@ class ChatGPTTelegramBot:
         application.add_handler(CommandHandler('image', self.image))
         application.add_handler(CommandHandler('tts', self.tts))
         application.add_handler(CommandHandler('start', self.help))
+        application.add_handler(CommandHandler('model', self.model))
         application.add_handler(CommandHandler('stats', self.stats))
         application.add_handler(CommandHandler('resend', self.resend))
         application.add_handler(CommandHandler(

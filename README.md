@@ -45,7 +45,7 @@ A [Telegram bot](https://core.telegram.org/bots/api) that integrates with OpenAI
 - [x] (NEW!) Text-to-speech support [announced on November 6, 2023](https://platform.openai.com/docs/guides/text-to-speech) - by [@gilcu3](https://github.com/gilcu3)
 
 ## Additional features - help needed!
-If you'd like to help, check out the [issues](https://github.com/n3d1117/chatgpt-telegram-bot/issues) section and contribute!  
+If you'd like to help, check out the [issues](https://github.com/ZorgeR/chatgpt-telegram-bot/issues) section and contribute!  
 If you want to help with translations, check out the [Translations Manual](https://github.com/n3d1117/chatgpt-telegram-bot/discussions/219)
 
 PRs are always welcome!
@@ -160,7 +160,7 @@ Check out the [official API reference](https://platform.openai.com/docs/api-refe
 Clone the repository and navigate to the project directory:
 
 ```shell
-git clone https://github.com/n3d1117/chatgpt-telegram-bot.git
+git clone https://github.com/ZorgeR/chatgpt-telegram-bot.git
 cd chatgpt-telegram-bot
 ```
 

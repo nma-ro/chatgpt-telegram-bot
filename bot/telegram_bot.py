@@ -84,20 +84,22 @@ class ChatGPTTelegramBot:
         """
         Shows the model menu.
         """
-        chat_id = update.effective_chat.id
+        # chat_id = update.effective_chat.id
         user_id = update.message.from_user.id
-        current_model = None
+        bot_language = self.config['bot_language']
 
-        try:
-            current_model = user_model_selection[user_id]
-        except:
-            user_model_selection[user_id] = 'gpt-3.5-turbo'
-            print(f"User {user_id} request his model. But hi's dont selected it before.")
-
-        if current_model is None:
-            msg = 'Current model: gpt-3.5-turbo'
-        else:
-            msg = f'Current model: {current_model}'
+        current_model = user_model_selection.get(user_id, 'gpt-3.5-turbo')
+        msg = f"gpt-3.5-turbo:" \
+              f"🟢🟢🟢🟢🟢 - Fast" \
+              f"🟢🟢🟢🟤🟤 - Smart" \
+              f"🟢🟢🟢🟢🟢 - Cheap" \
+              f"---" \
+              f"gpt-4:" \
+              f"🟢🟢🟢🟤🟤 - Fast" \
+              f"🟢🟢🟢🟢🟢 - Smart" \
+              f"🟢🟢🟢🟤🟤 - Cheap" \
+              f"---" \
+              f"{localized_text('current_model', bot_language)}: {current_model}"
 
         reply_markup = InlineKeyboardMarkup([[
             InlineKeyboardButton(text="gpt-3.5-turbo", callback_data="model_gpt-3.5-turbo"),
@@ -361,18 +363,14 @@ class ChatGPTTelegramBot:
             return
 
         if is_group_chat(update) and self.config['ignore_group_transcriptions']:
-            logging.info(f'Transcription coming from group chat, ignoring...')
+            logging.info('Transcription coming from group chat, ignoring...')
             return
 
         chat_id = update.effective_chat.id
         filename = update.message.effective_attachment.file_unique_id
 
         user_id = update.message.from_user.id
-        try:
-            current_model = user_model_selection[user_id]
-        except:
-            user_model_selection[user_id] = 'gpt-3.5-turbo'
-            print(f"User {user_id} request his model. But hi's dont selected it before.")
+        current_model = user_model_selection.get(user_id, 'gpt-3.5-turbo')
 
         async def _execute():
             filename_mp3 = f'{filename}.mp3'
@@ -443,7 +441,7 @@ class ChatGPTTelegramBot:
                         )
                 else:
                     # Get the response of the transcript
-                    response, total_tokens = await self.openai.get_chat_response(chat_id=chat_id, query=transcript, model=user_model_selection[user_id])
+                    response, total_tokens = await self.openai.get_chat_response(chat_id=chat_id, query=transcript, model=current_model)
 
                     self.usage[user_id].add_chat_tokens(total_tokens, self.config['token_price'])
                     if str(user_id) not in allowed_user_ids and 'guests' in self.usage:
@@ -498,11 +496,7 @@ class ChatGPTTelegramBot:
         prompt = message_text(update.message)
         self.last_message[chat_id] = prompt
 
-        try:
-            current_model = user_model_selection[user_id]
-        except:
-            user_model_selection[user_id] = 'gpt-3.5-turbo'
-            print(f"User {user_id} request his model. But hi's dont selected it before.")
+        current_model = user_model_selection.get(user_id, 'gpt-3.5-turbo')
 
         if is_group_chat(update):
             trigger_keyword = self.config['group_trigger_keyword']
@@ -531,7 +525,7 @@ class ChatGPTTelegramBot:
                     message_thread_id=get_thread_id(update)
                 )
 
-                stream_response = self.openai.get_chat_response_stream(chat_id=chat_id, query=prompt, model=user_model_selection[user_id])
+                stream_response = self.openai.get_chat_response_stream(chat_id=chat_id, query=prompt, model=current_model)
                 i = 0
                 prev = ''
                 sent_message = None
@@ -611,7 +605,7 @@ class ChatGPTTelegramBot:
             else:
                 async def _reply():
                     nonlocal total_tokens
-                    response, total_tokens = await self.openai.get_chat_response(chat_id=chat_id, query=prompt, model=user_model_selection[user_id])
+                    response, total_tokens = await self.openai.get_chat_response(chat_id=chat_id, query=prompt, model=current_model)
 
                     if is_direct_result(response):
                         return await handle_direct_result(self.config, update, response)
@@ -711,11 +705,7 @@ class ChatGPTTelegramBot:
         answer_tr = localized_text("answer", bot_language)
         loading_tr = localized_text("loading", bot_language)
 
-        try:
-            current_model = user_model_selection[user_id]
-        except:
-            user_model_selection[user_id] = 'gpt-3.5-turbo'
-            print(f"User {user_id} request his model. But hi's dont selected it before.")
+        current_model = user_model_selection.get(user_id, 'gpt-3.5-turbo')
 
         try:
             if callback_data.startswith(callback_data_suffix):
@@ -738,7 +728,7 @@ class ChatGPTTelegramBot:
 
                 unavailable_message = localized_text("function_unavailable_in_inline_mode", bot_language)
                 if self.config['stream']:
-                    stream_response = self.openai.get_chat_response_stream(chat_id=user_id, query=query, model=user_model_selection[user_id])
+                    stream_response = self.openai.get_chat_response_stream(chat_id=user_id, query=query, model=current_model)
                     i = 0
                     prev = ''
                     backoff = 0
@@ -806,7 +796,7 @@ class ChatGPTTelegramBot:
                                                             parse_mode=constants.ParseMode.MARKDOWN)
 
                         logging.info(f'Generating response for inline query by {name}')
-                        response, total_tokens = await self.openai.get_chat_response(chat_id=user_id, query=query, model=user_model_selection[user_id])
+                        response, total_tokens = await self.openai.get_chat_response(chat_id=user_id, query=query, model=current_model)
 
                         if is_direct_result(response):
                             cleanup_intermediate_files(response)

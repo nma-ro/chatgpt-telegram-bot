@@ -448,7 +448,9 @@ class ChatGPTTelegramBot:
                         )
                 else:
                     # Get the response of the transcript
-                    response, total_tokens = await self.openai.get_chat_response(chat_id=chat_id, query=transcript, model=current_model)
+                    response, total_tokens = await self.openai.get_chat_response(chat_id=chat_id,
+                                                                                 query=transcript,
+                                                                                 model=current_model)
 
                     self.usage[user_id].add_chat_tokens(total_tokens, self.config['token_price'])
                     if str(user_id) not in allowed_user_ids and 'guests' in self.usage:
@@ -513,8 +515,8 @@ class ChatGPTTelegramBot:
                     prompt = prompt[len(trigger_keyword):].strip()
 
                 if update.message.reply_to_message and \
-                        update.message.reply_to_message.text and \
-                        update.message.reply_to_message.from_user.id != context.bot.id:
+                                update.message.reply_to_message.text and \
+                                update.message.reply_to_message.from_user.id != context.bot.id:
                     prompt = f'"{update.message.reply_to_message.text}" {prompt}'
             else:
                 if update.message.reply_to_message and update.message.reply_to_message.from_user.id == context.bot.id:
@@ -532,7 +534,9 @@ class ChatGPTTelegramBot:
                     message_thread_id=get_thread_id(update)
                 )
 
-                stream_response = self.openai.get_chat_response_stream(chat_id=chat_id, query=prompt, model=current_model)
+                stream_response = self.openai.get_chat_response_stream(chat_id=chat_id,
+                                                                       query=prompt,
+                                                                       model=current_model)
                 i = 0
                 prev = ''
                 sent_message = None
@@ -554,15 +558,15 @@ class ChatGPTTelegramBot:
                             try:
                                 await edit_message_with_retry(context, chat_id, str(sent_message.message_id),
                                                               stream_chunks[-2])
-                            except:
-                                pass
+                            except Exception as e:
+                                print(f"Exception: {e}")
                             try:
                                 sent_message = await update.effective_message.reply_text(
                                     message_thread_id=get_thread_id(update),
                                     text=content if len(content) > 0 else "..."
                                 )
-                            except:
-                                pass
+                            except Exception as e:
+                                print(f"Exception: {e}")
                             continue
 
                     cutoff = get_stream_cutoff_values(update, content)
@@ -578,7 +582,8 @@ class ChatGPTTelegramBot:
                                 reply_to_message_id=get_reply_to_message_id(self.config, update),
                                 text=content,
                             )
-                        except:
+                        except Exception as e:
+                            print(f"Exception: {e}")
                             continue
 
                     elif abs(len(content) - len(prev)) > cutoff or tokens != 'not_finished':
@@ -599,7 +604,8 @@ class ChatGPTTelegramBot:
                             await asyncio.sleep(0.5)
                             continue
 
-                        except Exception:
+                        except Exception as e:
+                            print(f"Exception: {e}")
                             backoff += 5
                             continue
 
@@ -612,7 +618,9 @@ class ChatGPTTelegramBot:
             else:
                 async def _reply():
                     nonlocal total_tokens
-                    response, total_tokens = await self.openai.get_chat_response(chat_id=chat_id, query=prompt, model=current_model)
+                    response, total_tokens = await self.openai.get_chat_response(chat_id=chat_id,
+                                                                                 query=prompt,
+                                                                                 model=current_model)
 
                     if is_direct_result(response):
                         return await handle_direct_result(self.config, update, response)
@@ -629,7 +637,8 @@ class ChatGPTTelegramBot:
                                 text=chunk,
                                 parse_mode=constants.ParseMode.MARKDOWN
                             )
-                        except Exception:
+                        except Exception as er:
+                            print(f"Exception: {er}")
                             try:
                                 await update.effective_message.reply_text(
                                     message_thread_id=get_thread_id(update),
@@ -735,7 +744,9 @@ class ChatGPTTelegramBot:
 
                 unavailable_message = localized_text("function_unavailable_in_inline_mode", bot_language)
                 if self.config['stream']:
-                    stream_response = self.openai.get_chat_response_stream(chat_id=user_id, query=query, model=current_model)
+                    stream_response = self.openai.get_chat_response_stream(chat_id=user_id,
+                                                                           query=query,
+                                                                           model=current_model)
                     i = 0
                     prev = ''
                     backoff = 0
@@ -784,7 +795,8 @@ class ChatGPTTelegramBot:
                                 backoff += 5
                                 await asyncio.sleep(0.5)
                                 continue
-                            except Exception:
+                            except Exception as e:
+                                print(f"Exception: {e}")
                                 backoff += 5
                                 continue
 
@@ -803,7 +815,9 @@ class ChatGPTTelegramBot:
                                                             parse_mode=constants.ParseMode.MARKDOWN)
 
                         logging.info(f'Generating response for inline query by {name}')
-                        response, total_tokens = await self.openai.get_chat_response(chat_id=user_id, query=query, model=current_model)
+                        response, total_tokens = await self.openai.get_chat_response(chat_id=user_id,
+                                                                                     query=query,
+                                                                                     model=current_model)
 
                         if is_direct_result(response):
                             cleanup_intermediate_files(response)

@@ -62,6 +62,7 @@ def are_functions_available(model: str) -> bool:
     return True
 
 
+
 # Load translations
 parent_dir_path = os.path.join(os.path.dirname(__file__), os.pardir)
 translations_file_path = os.path.join(parent_dir_path, 'translations.json')
@@ -78,13 +79,11 @@ def localized_text(key, bot_language):
         return translations[bot_language][key]
     except KeyError:
         logging.warning(f"No translation available for bot_language code '{bot_language}' and key '{key}'")
-        # Fallback to English if the translation is not available
         if key in translations['en']:
             return translations['en'][key]
-        else:
-            logging.warning(f"No english definition found for key '{key}' in translations.json")
-            # return key as text
-            return key
+        logging.warning(f"No english definition found for key '{key}' in translations.json")
+        # return key as text
+        return key
 
 
 class OpenAIHelper:
@@ -117,9 +116,10 @@ class OpenAIHelper:
 
     async def get_chat_response(self, chat_id: int, query: str, model='gpt-3.5-turbo') -> tuple[str, str]:
         """
-        Gets a full response from the GPT model.
+        Gets a full response from the GPT model
         :param chat_id: The chat ID
         :param query: The query to send to the model
+        :param model: ChatGPT model selection
         :return: The answer from the model and the number of tokens used
         """
         plugins_used = ()
@@ -160,9 +160,10 @@ class OpenAIHelper:
 
     async def get_chat_response_stream(self, chat_id: int, query: str, model='gpt-3.5-turbo'):
         """
-        Stream response from the GPT model.
+        Stream response from the GPT model
         :param chat_id: The chat ID
         :param query: The query to send to the model
+        :param model: ChatGPT model selection
         :return: The answer from the model and the number of tokens used, or 'not_finished'
         """
         plugins_used = ()

@@ -8,8 +8,6 @@ import tiktoken
 import openai
 from openai import AsyncOpenAI
 
-aclient = AsyncOpenAI(api_key=config['api_key'])
-
 import requests
 import json
 import httpx
@@ -89,6 +87,9 @@ def localized_text(key, bot_language):
         return key
 
 
+aclient = None
+
+
 class OpenAIHelper:
     """
     ChatGPT helper class.
@@ -106,6 +107,7 @@ class OpenAIHelper:
         self.plugin_manager = plugin_manager
         self.conversations: dict[int: list] = {}  # {chat_id: history}
         self.last_updated: dict[int: datetime] = {}  # {chat_id: last_update_timestamp}
+
 
     def get_conversation_stats(self, chat_id: int) -> tuple[int, int]:
         """

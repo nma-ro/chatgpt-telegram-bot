@@ -328,6 +328,7 @@ class OpenAIHelper:
         try:
             response = await self.client.images.generate(
                 prompt=prompt,
+                model='dall-e-3',
                 n=1,
                 model=self.config['image_model'],
                 quality=self.config['image_quality'],

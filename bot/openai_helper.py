@@ -6,6 +6,9 @@ import os
 import tiktoken
 
 import openai
+from openai import AsyncOpenAI
+
+aclient = AsyncOpenAI(api_key=config['api_key'])
 
 import requests
 import json
@@ -328,7 +331,6 @@ class OpenAIHelper:
         try:
             response = await self.client.images.generate(
                 prompt=prompt,
-                model='dall-e-3',
                 n=1,
                 model=self.config['image_model'],
                 quality=self.config['image_quality'],

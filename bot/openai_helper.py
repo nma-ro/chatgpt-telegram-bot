@@ -6,7 +6,6 @@ import os
 import tiktoken
 
 import openai
-from openai import AsyncOpenAI
 
 import requests
 import json
@@ -87,9 +86,6 @@ def localized_text(key, bot_language):
         return key
 
 
-aclient = None
-
-
 class OpenAIHelper:
     """
     ChatGPT helper class.
@@ -107,7 +103,6 @@ class OpenAIHelper:
         self.plugin_manager = plugin_manager
         self.conversations: dict[int: list] = {}  # {chat_id: history}
         self.last_updated: dict[int: datetime] = {}  # {chat_id: last_update_timestamp}
-
 
     def get_conversation_stats(self, chat_id: int) -> tuple[int, int]:
         """
@@ -204,7 +199,7 @@ class OpenAIHelper:
 
     @retry(
         reraise=True,
-        retry=retry_if_exception_type(openai.RateLimitError),
+        retry=retry_if_exception_type(openai.error.RateLimitError),
         wait=wait_fixed(20),
         stop=stop_after_attempt(3)
         )
@@ -261,7 +256,7 @@ class OpenAIHelper:
                     common_args['function_call'] = 'auto'
             return await self.client.chat.completions.create(**common_args)
 
-        except openai.RateLimitError as e:
+        except openai.error.RateLimitError as e:
             raise e
 
         except openai.BadRequestError as e:

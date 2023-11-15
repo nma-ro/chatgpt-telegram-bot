@@ -62,7 +62,6 @@ def are_functions_available(model: str) -> bool:
     return True
 
 
-
 # Load translations
 parent_dir_path = os.path.join(os.path.dirname(__file__), os.pardir)
 translations_file_path = os.path.join(parent_dir_path, 'translations.json')
@@ -199,7 +198,8 @@ class OpenAIHelper:
 
     @retry(
         reraise=True,
-        retry=retry_if_exception_type(openai.error.RateLimitError),
+        # retry=retry_if_exception_type(openai.error.RateLimitError),
+        retry=retry_if_exception_type(openai.RateLimitError),
         wait=wait_fixed(20),
         stop=stop_after_attempt(3)
         )
@@ -256,7 +256,7 @@ class OpenAIHelper:
                     common_args['function_call'] = 'auto'
             return await self.client.chat.completions.create(**common_args)
 
-        except openai.error.RateLimitError as e:
+        except openai.RateLimitError as e:
             raise e
 
         except openai.BadRequestError as e:

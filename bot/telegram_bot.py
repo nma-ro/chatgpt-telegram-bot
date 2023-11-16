@@ -128,8 +128,8 @@ class ChatGPTTelegramBot:
         reply_markup = InlineKeyboardMarkup([
             [InlineKeyboardButton(text=f"{gpt_3_status} gpt-3.5-turbo", callback_data="model_gpt-3.5-turbo"),
              InlineKeyboardButton(text=f"{gpt_4_status} gpt-4", callback_data="model_gpt-4")],
-            [InlineKeyboardButton(text=f"{gpt_4_turbo_status} gpt-4-turbo", callback_data="model_gpt-4-turbo")],
-            [InlineKeyboardButton(text=f"{gpt_4_vision_status} gpt-4-vision", callback_data="model_gpt-4-vision")]
+            [InlineKeyboardButton(text=f"{gpt_4_turbo_status} gpt-4-turbo", callback_data="model_gpt-4-turbo")]#,
+            # [InlineKeyboardButton(text=f"{gpt_4_vision_status} gpt-4-vision", callback_data="model_gpt-4-vision")]
         ])
         await update.effective_message.reply_text(
                 message_thread_id=get_thread_id(update),

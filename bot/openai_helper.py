@@ -389,9 +389,12 @@ class OpenAIHelper:
 
 
     async def interpret_image(self, chat_id, fileobj, prompt=None):
+        image_interpreeter_model = 'gpt-4-vision-preview'
+
         """
         Interprets a given PNG image file using the Vision model.
         """
+
         try:
             image = encode_image(fileobj)
             prompt = self.config['vision_prompt'] if prompt is None else prompt
@@ -403,11 +406,10 @@ class OpenAIHelper:
 
             self.last_updated[chat_id] = datetime.datetime.now()
 
-
             message = {'role':'user', 'content':[{'type':'text', 'text':prompt}, {'type':'image_url', \
                         'image_url': {'url':f'data:image/jpeg;base64,{image}', 'detail':self.config['vision_detail'] } }]}
             common_args = {
-                'model': self.config['model'],
+                'model': image_interpreeter_model, # self.config['model'],
                 'messages': self.conversations[chat_id] + [message],
                 'temperature': self.config['temperature'],
                 'n': 1, # several choices is not implemented yet

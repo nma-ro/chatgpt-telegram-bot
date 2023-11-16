@@ -414,8 +414,7 @@ class OpenAIHelper:
 
             self.last_updated[chat_id] = datetime.datetime.now()
 
-            message = {'role':'user', 'content':[{'type':'text', 'text':prompt}, {'type':'image_url', \
-                        'image_url': {'url':f'data:image/jpeg;base64,{image}', 'detail':self.config['vision_detail'] } }]}
+            message = {'role':'user', 'content':[{'type':'text', 'text':prompt}, {'type':'image_url', 'image_url': {'url':f'data:image/jpeg;base64,{image}', 'detail':self.config['vision_detail'] } }]}
             common_args = {
                 'model': image_interpreeter_model, # self.config['model'],
                 'messages': self.conversations[chat_id] + [message],
@@ -430,10 +429,8 @@ class OpenAIHelper:
 
             response = await self.client.chat.completions.create(**common_args)
 
-
             content = response.choices[0].message.content
             self.__add_to_history(chat_id, role="assistant", content=content)
-
 
             return content, self.__count_tokens_vision(fileobj)
 

@@ -3,16 +3,18 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import io
 
 from uuid import uuid4
 from telegram import BotCommandScopeAllGroupChats, Update, constants
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton, InlineQueryResultArticle
 from telegram import InputTextMessageContent, BotCommand
-from telegram.error import RetryAfter, TimedOut
+from telegram.error import RetryAfter, TimedOut, BadRequest
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, \
     filters, InlineQueryHandler, CallbackQueryHandler, Application, ContextTypes, CallbackContext
 
 from pydub import AudioSegment
+from PIL import Image
 
 from utils import is_group_chat, get_thread_id, message_text, wrap_with_indicator, split_into_chunks, \
     edit_message_with_retry, get_stream_cutoff_values, is_allowed, get_remaining_budget, is_admin, is_within_budget, \
@@ -112,6 +114,7 @@ class ChatGPTTelegramBot:
         gpt_3_status = ""
         gpt_4_status = ""
         gpt_4_turbo_status = ""
+        gpt_4_vision_status = ""
 
         if current_model == "gpt-3.5-turbo":
             gpt_3_status = selected
@@ -119,11 +122,14 @@ class ChatGPTTelegramBot:
             gpt_4_status = selected
         elif current_model == "gpt-4-1106-preview":
             gpt_4_turbo_status = selected
+        elif current_model == "gpt-4-vision-preview":
+            gpt_4_vision_status = selected
 
         reply_markup = InlineKeyboardMarkup([
             [InlineKeyboardButton(text=f"{gpt_3_status} gpt-3.5-turbo", callback_data="model_gpt-3.5-turbo"),
              InlineKeyboardButton(text=f"{gpt_4_status} gpt-4", callback_data="model_gpt-4")],
-            [InlineKeyboardButton(text=f"{gpt_4_turbo_status} gpt-4-turbo", callback_data="model_gpt-4-turbo")]
+            [InlineKeyboardButton(text=f"{gpt_4_turbo_status} gpt-4-turbo", callback_data="model_gpt-4-turbo")],
+            [InlineKeyboardButton(text=f"{gpt_4_vision_status} gpt-4-vision", callback_data="model_gpt-4-vision")]
         ])
         await update.effective_message.reply_text(
                 message_thread_id=get_thread_id(update),
@@ -155,6 +161,7 @@ class ChatGPTTelegramBot:
         (transcribe_minutes_today, transcribe_seconds_today, transcribe_minutes_month,
          transcribe_seconds_month) = self.usage[user_id].get_current_transcription_duration()
         characters_today, characters_month = self.usage[user_id].get_current_tts_usage()
+        vision_today, vision_month = self.usage[user_id].get_current_vision_tokens()
         current_cost = self.usage[user_id].get_current_cost()
 
         chat_id = update.effective_chat.id
@@ -178,11 +185,17 @@ class ChatGPTTelegramBot:
         if self.config.get('enable_tts_generation', False):
             text_today_tts = f"{characters_today} {localized_text('stats_tts', bot_language)}\n"
         
+
+        text_today_vision = ""
+        if self.config.get('enable_vision', False):
+            text_today_vision = f"{vision_today} {localized_text('stats_vision', bot_language)}\n"
+
         text_today = (
             f"*{localized_text('usage_today', bot_language)}:*\n"
             f"{tokens_today} {localized_text('stats_tokens', bot_language)}\n"
             f"{text_today_images}"  # Include the image statistics for today if applicable
             f"{text_today_tts}"
+            f"{text_today_vision}"
             f"{transcribe_minutes_today} {localized_text('stats_transcribe', bot_language)[0]} "
             f"{transcribe_seconds_today} {localized_text('stats_transcribe', bot_language)[1]}\n"
             f"{localized_text('stats_total', bot_language)}{current_cost['cost_today']:.2f}\n"
@@ -197,12 +210,17 @@ class ChatGPTTelegramBot:
         if self.config.get('enable_tts_generation', False):
             text_month_tts = f"{characters_month} {localized_text('stats_tts', bot_language)}\n"
         
+        text_month_vision = ""
+        if self.config.get('enable_vision', False):
+            text_month_vision = f"{vision_month} {localized_text('stats_vision', bot_language)}\n"
+
         # Check if image generation is enabled and, if so, generate the image statistics for the month
         text_month = (
             f"*{localized_text('usage_month', bot_language)}:*\n"
             f"{tokens_month} {localized_text('stats_tokens', bot_language)}\n"
             f"{text_month_images}"  # Include the image statistics for the month if applicable
             f"{text_month_tts}"
+            f"{text_month_vision}"
             f"{transcribe_minutes_month} {localized_text('stats_transcribe', bot_language)[0]} "
             f"{transcribe_seconds_month} {localized_text('stats_transcribe', bot_language)[1]}\n"
             f"{localized_text('stats_total', bot_language)}{current_cost['cost_month']:.2f}"
@@ -501,6 +519,119 @@ class ChatGPTTelegramBot:
                     os.remove(filename)
 
         await wrap_with_indicator(update, context, _execute, constants.ChatAction.TYPING)
+
+    async def vision(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        Interpret image using vision model.
+        """
+        if not self.config['enable_vision'] or not await self.check_allowed_and_within_budget(update, context):
+            return
+
+        chat_id = update.effective_chat.id
+        prompt = update.message.caption
+
+        if is_group_chat(update):
+            if self.config['ignore_group_vision']:
+                logging.info(f'Vision coming from group chat, ignoring...')
+                return
+            else:
+                trigger_keyword = self.config['group_trigger_keyword']
+                if (prompt is None and trigger_keyword != '') or \
+                   (prompt is not None and not prompt.lower().startswith(trigger_keyword.lower())):
+                    logging.info(f'Vision coming from group chat with wrong keyword, ignoring...')
+                    return
+
+        image = update.message.effective_attachment[-1]
+
+
+        async def _execute():
+            bot_language = self.config['bot_language']
+            try:
+                media_file = await context.bot.get_file(image.file_id)
+                temp_file = io.BytesIO(await media_file.download_as_bytearray())
+            except Exception as e:
+                logging.exception(e)
+                await update.effective_message.reply_text(
+                    message_thread_id=get_thread_id(update),
+                    reply_to_message_id=get_reply_to_message_id(self.config, update),
+                    text=(
+                        f"{localized_text('media_download_fail', bot_language)[0]}: "
+                        f"{str(e)}. {localized_text('media_download_fail', bot_language)[1]}"
+                    ),
+                    parse_mode=constants.ParseMode.MARKDOWN
+                )
+                return
+
+            # convert jpg from telegram to png as understood by openai
+
+            temp_file_png = io.BytesIO()
+
+            try:
+                original_image = Image.open(temp_file)
+
+                original_image.save(temp_file_png, format='PNG')
+                logging.info(f'New vision request received from user {update.message.from_user.name} '
+                             f'(id: {update.message.from_user.id})')
+
+            except Exception as e:
+                logging.exception(e)
+                await update.effective_message.reply_text(
+                    message_thread_id=get_thread_id(update),
+                    reply_to_message_id=get_reply_to_message_id(self.config, update),
+                    text=localized_text('media_type_fail', bot_language)
+                )
+
+
+
+            user_id = update.message.from_user.id
+            if user_id not in self.usage:
+                self.usage[user_id] = UsageTracker(user_id, update.message.from_user.name)
+
+            try:
+                interpretation, tokens = await self.openai.interpret_image(chat_id, temp_file_png, prompt=prompt)
+
+                vision_token_price = self.config['vision_token_price']
+                self.usage[user_id].add_vision_tokens(tokens, vision_token_price)
+
+                allowed_user_ids = self.config['allowed_user_ids'].split(',')
+                if str(user_id) not in allowed_user_ids and 'guests' in self.usage:
+                    self.usage["guests"].add_vision_tokens(tokens, vision_token_price)
+
+                try:
+                    await update.effective_message.reply_text(
+                        message_thread_id=get_thread_id(update),
+                        reply_to_message_id=get_reply_to_message_id(self.config, update),
+                        text=interpretation,
+                        parse_mode=constants.ParseMode.MARKDOWN
+                    )
+                except BadRequest:
+                    try:
+                        await update.effective_message.reply_text(
+                            message_thread_id=get_thread_id(update),
+                            reply_to_message_id=get_reply_to_message_id(self.config, update),
+                            text=interpretation
+                        )
+                    except Exception as e:
+                        logging.exception(e)
+                        await update.effective_message.reply_text(
+                            message_thread_id=get_thread_id(update),
+                            reply_to_message_id=get_reply_to_message_id(self.config, update),
+                            text=f"{localized_text('vision_fail', bot_language)}: {str(e)}",
+                            parse_mode=constants.ParseMode.MARKDOWN
+                        )
+            except Exception as e:
+                logging.exception(e)
+                await update.effective_message.reply_text(
+                    message_thread_id=get_thread_id(update),
+                    reply_to_message_id=get_reply_to_message_id(self.config, update),
+                    text=f"{localized_text('vision_fail', bot_language)}: {str(e)}",
+                    parse_mode=constants.ParseMode.MARKDOWN
+                )
+
+        await wrap_with_indicator(update, context, _execute, constants.ChatAction.TYPING)
+
+
+
 
     async def prompt(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
 
@@ -871,6 +1002,11 @@ class ChatGPTTelegramBot:
                 user_model_selection[user_id] = current_model
                 await callback_query.edit_message_text(text=f"Model changed to: {current_model}")
 
+            elif callback_data == "model_gpt-4-vision":
+                current_model = 'gpt-4-vision-preview'
+                user_model_selection[user_id] = current_model
+                await callback_query.edit_message_text(text=f"Model changed to: {current_model}")
+
         except Exception as e:
             logging.error(f'Failed to respond to an inline query via button callback: {e}')
             logging.exception(e)
@@ -959,6 +1095,10 @@ class ChatGPTTelegramBot:
         application.add_handler(CommandHandler(
                 'chat', self.prompt, filters=filters.ChatType.GROUP | filters.ChatType.SUPERGROUP)
         )
+
+        application.add_handler(MessageHandler(
+            filters.PHOTO | filters.Document.IMAGE,
+            self.vision))
         application.add_handler(MessageHandler(
                 filters.AUDIO | filters.VOICE | filters.Document.AUDIO |
                 filters.VIDEO | filters.VIDEO_NOTE | filters.Document.VIDEO,

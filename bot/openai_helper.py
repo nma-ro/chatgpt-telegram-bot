@@ -528,6 +528,7 @@ class OpenAIHelper:
             tokens_per_name = 1
         else:
             raise NotImplementedError(f"""num_tokens_from_messages() is not implemented for model {model}.""")
+
         num_tokens = 0
         for message in messages:
             num_tokens += tokens_per_message
@@ -547,7 +548,9 @@ class OpenAIHelper:
         :return: the number of tokens required
         """
         image = Image.open(fileobj)
-        model = self.config['model']
+        image_interpreeter_model = 'gpt-4-vision-preview'
+        model = image_interpreeter_model # self.config['model']
+
         if model not in GPT_4_VISION_MODELS:
             raise NotImplementedError(f"""num_tokens_from_messages() is not implemented for model {model}.""")
 

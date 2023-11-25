@@ -250,7 +250,7 @@ class OpenAIHelper:
                     self.conversations[chat_id] = self.conversations[chat_id][-self.config['max_history_size']:]
 
             return await openai.ChatCompletion.acreate(
-                model=model,  # self.config['model']
+                model=model,
                 messages=self.conversations[chat_id],
                 temperature=self.config['temperature'],
                 n=self.config['n_choices'],

@@ -249,16 +249,16 @@ class OpenAIHelper:
                     logging.warning(f'Error while summarising chat history: {str(e)}. Popping elements instead...')
                     self.conversations[chat_id] = self.conversations[chat_id][-self.config['max_history_size']:]
 
-            return await openai.ChatCompletion.acreate(
-                model=model,
-                messages=self.conversations[chat_id],
-                temperature=self.config['temperature'],
-                n=self.config['n_choices'],
-                max_tokens=self.config['max_tokens'],
-                presence_penalty=self.config['presence_penalty'],
-                frequency_penalty=self.config['frequency_penalty'],
-                stream=stream
-            )
+            common_args = {
+                'model'            : model,
+                'messages'         : self.conversations[chat_id],
+                'temperature'      : self.config['temperature'],
+                'n'                : self.config['n_choices'],
+                'max_tokens'       : self.config['max_tokens'],
+                'presence_penalty' : self.config['presence_penalty'],
+                'frequency_penalty': self.config['frequency_penalty'],
+                'stream'           : stream
+            }
 
             if self.config['enable_functions']:
                 functions = self.plugin_manager.get_functions_specs()

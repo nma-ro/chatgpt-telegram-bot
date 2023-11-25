@@ -45,6 +45,8 @@ class ChatGPTTelegramBot:
             BotCommand(command='reset', description=localized_text('reset_description', bot_language)),
             BotCommand(command='model', description=localized_text('model_description', bot_language)),
             BotCommand(command='image', description=localized_text('image_description', bot_language)),
+            BotCommand(command='image_album', description=localized_text('image_album_description', bot_language)),
+            BotCommand(command='image_portrait', description=localized_text('image_portrait_description', bot_language)),
             BotCommand(command='stats', description=localized_text('stats_description', bot_language)),
             BotCommand(command='resend', description=localized_text('resend_description', bot_language))
         ]
@@ -295,7 +297,13 @@ class ChatGPTTelegramBot:
                 text=localized_text('reset_done', self.config['bot_language'])
         )
 
-    async def image(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def image_album(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        await self.image(update, context, size="1792x1024")
+
+    async def image_portrait(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        await self.image(update, context, size="1024x1792")
+
+    async def image(self, update: Update, context: ContextTypes.DEFAULT_TYPE, size: str):
         """
         Generates an image for the given prompt using DALL·E APIs
         """
@@ -316,7 +324,7 @@ class ChatGPTTelegramBot:
 
         async def _generate():
             try:
-                image_url, image_size = await self.openai.generate_image(prompt=image_query)
+                image_url, image_size = await self.openai.generate_image(prompt=image_query, size=size)
                 if self.config['image_receive_mode'] == 'photo':
                     await update.effective_message.reply_photo(
                         reply_to_message_id=get_reply_to_message_id(self.config, update),
@@ -346,6 +354,7 @@ class ChatGPTTelegramBot:
                 )
 
         await wrap_with_indicator(update, context, _generate, constants.ChatAction.UPLOAD_PHOTO)
+
 
     async def tts(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
@@ -1091,6 +1100,8 @@ class ChatGPTTelegramBot:
         application.add_handler(CommandHandler('reset', self.reset))
         application.add_handler(CommandHandler('help', self.help))
         application.add_handler(CommandHandler('image', self.image))
+        application.add_handler(CommandHandler('image_album', self.image_album))
+        application.add_handler(CommandHandler('image_portrait', self.image_portrait))
         application.add_handler(CommandHandler('tts', self.tts))
         application.add_handler(CommandHandler('start', self.help))
         application.add_handler(CommandHandler('model', self.model))

@@ -113,14 +113,14 @@ class UsageTracker:
 
     # image usage functions:
 
-    def add_image_request(self, image_size, image_prices="0.016,0.018,0.02"):
+    def add_image_request(self, image_size, image_prices="0.016,0.018,0.04,0.08,0.08"):
         """Add image request to users usage history and update current costs.
 
         :param image_size: requested image size
         :param image_prices: prices for images of sizes ["256x256", "512x512", "1024x1024"],
                              defaults to [0.016, 0.018, 0.02]
         """
-        sizes = ["256x256", "512x512", "1024x1024"]
+        sizes = ["256x256", "512x512", "1024x1024", "1792x1024", "1024x1792"]
         requested_size = sizes.index(image_size)
         image_cost = image_prices[requested_size]
         today = date.today()
@@ -129,7 +129,7 @@ class UsageTracker:
         # update usage_history
         if str(today) not in self.usage["usage_history"]["number_images"]:
             # create new entry for current date
-            self.usage["usage_history"]["number_images"][str(today)] = [0, 0, 0]
+            self.usage["usage_history"]["number_images"][str(today)] = [0, 0, 0, 0, 0]
         # add token usage to existing date
         self.usage["usage_history"]["number_images"][str(today)][requested_size] += 1
         # write updated image number to user file

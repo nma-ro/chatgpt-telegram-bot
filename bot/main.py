@@ -29,7 +29,7 @@ def main():
         exit(1)
 
     # Setup configurations
-    model = os.environ.get('OPENAI_MODEL', 'gpt-4-1106-preview')
+    model = os.environ.get('OPENAI_MODEL', 'gpt-3.5-turbo')
     functions_available = are_functions_available(model=model)
     max_tokens_default = default_max_tokens(model=model)
     openai_config = {
@@ -94,7 +94,7 @@ def main():
         'ignore_group_vision': os.environ.get('IGNORE_GROUP_VISION', 'true').lower() == 'true',
         'group_trigger_keyword': os.environ.get('GROUP_TRIGGER_KEYWORD', ''),
         'token_price': float(os.environ.get('TOKEN_PRICE', 0.002)),
-        'image_prices': [float(i) for i in os.environ.get('IMAGE_PRICES', "0.016,0.018,0.02").split(",")],
+        'image_prices': [float(i) for i in os.environ.get('IMAGE_PRICES', "0.016,0.018,0.04,0.08,0.08").split(",")],
         'image_receive_mode': os.environ.get('IMAGE_FORMAT', "document"),
         'tts_model': os.environ.get('TTS_MODEL', 'tts-1'),
         'tts_prices': [float(i) for i in os.environ.get('TTS_PRICES', "0.015,0.030").split(",")],

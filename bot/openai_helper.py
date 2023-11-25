@@ -31,6 +31,7 @@ GPT_ALL_MODELS = GPT_3_MODELS + GPT_3_16K_MODELS + GPT_4_MODELS + GPT_4_32K_MODE
 
 vision_prompt = "What is in this image"
 
+
 def default_max_tokens(model: str) -> int:
     """
     Gets the default number of max tokens for the given model.
@@ -47,9 +48,29 @@ def default_max_tokens(model: str) -> int:
     elif model in GPT_4_32K_MODELS:
         return base * 8
     elif model in GPT_4_128K_MODELS:
-        return 9600
+        return 4096
     elif model in GPT_4_VISION_MODELS:
-        return 9600
+        return 4096
+
+
+def max_model_tokens(model: str) -> int:
+    base = 4096
+    if model in GPT_3_MODELS:
+        return base
+    if model in GPT_3_16K_MODELS:
+        return base * 4
+    if model in GPT_4_MODELS:
+        return base * 2
+    if model in GPT_4_32K_MODELS:
+        return base * 8
+    if model in GPT_4_128K_MODELS:
+        return 128000
+    if model in GPT_4_VISION_MODELS:
+        return 128000
+    raise NotImplementedError(
+        f"Max tokens for model {model} is not implemented yet."
+    )
+
 
 def are_functions_available(model: str) -> bool:
     """
@@ -232,7 +253,9 @@ class OpenAIHelper:
 
             # Summarize the chat history if it's too long to avoid excessive token usage
             token_count = self.__count_tokens(self.conversations[chat_id])
-            exceeded_max_tokens = token_count + self.config['max_tokens'] > self.__max_model_tokens()
+            model_default_max = default_max_tokens(model=model)
+            max_model_token = max_model_tokens(model=model)
+            exceeded_max_tokens = token_count + model_default_max > max_model_token
             exceeded_max_history_size = len(self.conversations[chat_id]) > self.config['max_history_size']
 
             if exceeded_max_tokens or exceeded_max_history_size:
@@ -252,7 +275,7 @@ class OpenAIHelper:
                 'messages'         : self.conversations[chat_id],
                 'temperature'      : self.config['temperature'],
                 'n'                : self.config['n_choices'],
-                'max_tokens'       : self.config['max_tokens'],
+                'max_tokens'       : default_max_tokens(model=model),
                 'presence_penalty' : self.config['presence_penalty'],
                 'frequency_penalty': self.config['frequency_penalty'],
                 'stream'           : stream
@@ -327,12 +350,15 @@ class OpenAIHelper:
         )
         return await self.__handle_function_call(chat_id, response, stream, times + 1, plugins_used)
 
-    async def generate_image(self, prompt: str) -> tuple[str, str]:
+    async def generate_image(self, prompt: str, size: str) -> tuple[str, str]:
         """
         Generates an image from the given prompt using DALL·E model.
         :param prompt: The prompt to send to the model
         :return: The image URL and the image size
         """
+        if size is None:
+            size = self.config['image_size']
+
         bot_language = self.config['bot_language']
         try:
             response = await self.client.images.generate(
@@ -341,7 +367,7 @@ class OpenAIHelper:
                 model=self.config['image_model'],
                 quality=self.config['image_quality'],
                 style=self.config['image_style'],
-                size=self.config['image_size']
+                size=size
             )
 
             if len(response.data) == 0:
@@ -485,6 +511,7 @@ class OpenAIHelper:
             {"role": "assistant", "content": "Summarize this conversation in 700 characters or less"},
             {"role": "user", "content": str(conversation)}
         ]
+
         response = await self.client.chat.completions.create(
             model=self.config['model'],
             messages=messages,
@@ -492,23 +519,6 @@ class OpenAIHelper:
         )
         return response.choices[0].message.content
 
-    def __max_model_tokens(self):
-        base = 4096
-        if self.config['model'] in GPT_3_MODELS:
-            return base
-        if self.config['model'] in GPT_3_16K_MODELS:
-            return base * 4
-        if self.config['model'] in GPT_4_MODELS:
-            return base * 2
-        if self.config['model'] in GPT_4_32K_MODELS:
-            return base * 8
-        if self.config['model'] in GPT_4_128K_MODELS:
-            return 128000
-        if self.config['model'] in GPT_4_VISION_MODELS:
-            return 128000
-        raise NotImplementedError(
-            f"Max tokens for model {self.config['model']} is not implemented yet."
-        )
 
     # https://github.com/openai/openai-cookbook/blob/main/examples/How_to_count_tokens_with_tiktoken.ipynb
     def __count_tokens(self, messages) -> int:

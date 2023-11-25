@@ -4,6 +4,8 @@
         "reset_description":"Reset the conversation. Optionally pass high-level instructions (e.g. /reset You are a helpful assistant)",
         "model_description": "Select ChatGPT model",
         "image_description":"Generate image from prompt (e.g. /image cat)",
+        "image_album_description":"Generate album image from prompt (e.g. /image_album cat)",
+        "image_portrait_description":"Generate portrait image from prompt (e.g. /image_portrait cat)",
         "tts_description":"Generate speech from text (e.g. /tts my house)",
         "stats_description":"Get your current usage statistics",
         "resend_description":"Resend the latest message",

@@ -10,6 +10,7 @@ import openai
 import requests
 import json
 import httpx
+import io
 from datetime import date
 from calendar import monthrange
 from PIL import Image
@@ -30,6 +31,7 @@ GPT_ALL_MODELS = GPT_3_MODELS + GPT_3_16K_MODELS + GPT_4_MODELS + GPT_4_32K_MODE
 
 vision_prompt = "What is in this image"
 
+
 def default_max_tokens(model: str) -> int:
     """
     Gets the default number of max tokens for the given model.
@@ -46,9 +48,29 @@ def default_max_tokens(model: str) -> int:
     elif model in GPT_4_32K_MODELS:
         return base * 8
     elif model in GPT_4_128K_MODELS:
-        return base * 32
+        return 4096
     elif model in GPT_4_VISION_MODELS:
         return 4096
+
+
+def max_model_tokens(model: str) -> int:
+    base = 4096
+    if model in GPT_3_MODELS:
+        return base
+    if model in GPT_3_16K_MODELS:
+        return base * 4
+    if model in GPT_4_MODELS:
+        return base * 2
+    if model in GPT_4_32K_MODELS:
+        return base * 8
+    if model in GPT_4_128K_MODELS:
+        return 128000
+    if model in GPT_4_VISION_MODELS:
+        return 128000
+    raise NotImplementedError(
+        f"Max tokens for model {model} is not implemented yet."
+    )
+
 
 def are_functions_available(model: str) -> bool:
     """
@@ -58,11 +80,12 @@ def are_functions_available(model: str) -> bool:
     if model in ("gpt-3.5-turbo-0301", "gpt-4-0314", "gpt-4-32k-0314"):
         return False
     # Stable models will be updated to support functions on June 27, 2023
-    if model in ("gpt-3.5-turbo", "gpt-4", "gpt-4-32k"):
+    if model in ("gpt-3.5-turbo", "gpt-3.5-turbo-1106", "gpt-4", "gpt-4-32k","gpt-4-1106-preview"):
         return datetime.date.today() > datetime.date(2023, 6, 27)
     if model == 'gpt-4-vision-preview':
         return False
     return True
+
 
 # Load translations
 parent_dir_path = os.path.join(os.path.dirname(__file__), os.pardir)
@@ -98,8 +121,6 @@ class OpenAIHelper:
         :param config: A dictionary containing the GPT configuration
         :param plugin_manager: The plugin manager
         """
-        # openai.api_key = config['api_key']
-        # openai.proxy = config['proxy']
         http_client = httpx.AsyncClient(proxies=config['proxy']) if 'proxy' in config else None
         self.client = openai.AsyncOpenAI(api_key=config['api_key'], http_client=http_client)
         self.config = config
@@ -117,7 +138,10 @@ class OpenAIHelper:
             self.reset_chat_history(chat_id)
         return len(self.conversations[chat_id]), self.__count_tokens(self.conversations[chat_id])
 
-    async def get_chat_response(self, chat_id: int, query: str, model='gpt-3.5-turbo') -> tuple[str, str]:
+    async def get_chat_response(self, chat_id: int, query: str, model=None) -> tuple[str, str]:
+        if model is None:
+            model = self.config['model']
+
         """
         Gets a full response from the GPT model
         :param chat_id: The chat ID
@@ -136,7 +160,6 @@ class OpenAIHelper:
 
         if len(response.choices) > 1 and self.config['n_choices'] > 1:
             for index, choice in enumerate(response.choices):
-                # content = choice['message']['content'].strip()
                 content = choice.message.content.strip()
                 if index == 0:
                     self.__add_to_history(chat_id, role="assistant", content=content)
@@ -144,7 +167,6 @@ class OpenAIHelper:
                 answer += content
                 answer += '\n\n'
         else:
-            # answer = response.choices[0]['message']['content'].strip()
             answer = response.choices[0].message.content.strip()
             self.__add_to_history(chat_id, role="assistant", content=answer)
 
@@ -156,19 +178,16 @@ class OpenAIHelper:
                       f"💰 {str(response.usage.total_tokens)} {localized_text('stats_tokens', bot_language)}" \
                       f" ({str(response.usage.prompt_tokens)} {localized_text('prompt', bot_language)}," \
                       f" {str(response.usage.completion_tokens)} {localized_text('completion', bot_language)})"
-                      # f"💰 {str(response.usage['total_tokens'])} {localized_text('stats_tokens', bot_language)}" \
-                      # f" ({str(response.usage['prompt_tokens'])} {localized_text('prompt', bot_language)}," \
-                      # f" {str(response.usage['completion_tokens'])} {localized_text('completion', bot_language)})"
             if show_plugins_used:
                 answer += f"\n🔌 {', '.join(plugin_names)}"
         elif show_plugins_used:
             answer += f"\n\n---\n🔌 {', '.join(plugin_names)}"
 
-        # return answer, response.usage['total_tokens']
-
         return answer, response.usage.total_tokens
 
-    async def get_chat_response_stream(self, chat_id: int, query: str, model='gpt-3.5-turbo'):
+    async def get_chat_response_stream(self, chat_id: int, query: str, model=None):
+        if model is None:
+            model = self.config['model']
         """
         Stream response from the GPT model
         :param chat_id: The chat ID
@@ -185,13 +204,9 @@ class OpenAIHelper:
                 return
 
         answer = ''
-        # async for item in response:
-        #     if 'choices' not in item or len(item.choices) == 0:
         async for chunk in response:
             if len(chunk.choices) == 0:
                 continue
-            # delta = item.choices[0].delta
-            # if 'content' in delta and delta.content is not None:
             delta = chunk.choices[0].delta
             if delta.content:
                 answer += delta.content
@@ -217,11 +232,10 @@ class OpenAIHelper:
         retry=retry_if_exception_type(openai.RateLimitError),
         wait=wait_fixed(20),
         stop=stop_after_attempt(3)
-    )
-    async def __common_get_chat_response(self, chat_id: int, query: str, stream=False, model='gpt-3.5-turbo'):
+        )
+    async def __common_get_chat_response(self, chat_id: int, query: str, stream=False, model=None):
         if model is None:
-            model = 'gpt-3.5-turbo'
-
+            model = self.config['model']
         """
         Request a response from the GPT model.
         :param chat_id: The chat ID
@@ -239,7 +253,9 @@ class OpenAIHelper:
 
             # Summarize the chat history if it's too long to avoid excessive token usage
             token_count = self.__count_tokens(self.conversations[chat_id])
-            exceeded_max_tokens = token_count + self.config['max_tokens'] > self.__max_model_tokens()
+            model_default_max = default_max_tokens(model=model)
+            max_model_token = max_model_tokens(model=model)
+            exceeded_max_tokens = token_count + model_default_max > max_model_token
             exceeded_max_history_size = len(self.conversations[chat_id]) > self.config['max_history_size']
 
             if exceeded_max_tokens or exceeded_max_history_size:
@@ -255,14 +271,14 @@ class OpenAIHelper:
                     self.conversations[chat_id] = self.conversations[chat_id][-self.config['max_history_size']:]
 
             common_args = {
-                'model': model, # self.config['model'],
-                'messages': self.conversations[chat_id],
-                'temperature': self.config['temperature'],
-                'n': self.config['n_choices'],
-                'max_tokens': self.config['max_tokens'],
-                'presence_penalty': self.config['presence_penalty'],
+                'model'            : model,
+                'messages'         : self.conversations[chat_id],
+                'temperature'      : self.config['temperature'],
+                'n'                : self.config['n_choices'],
+                'max_tokens'       : default_max_tokens(model=model),
+                'presence_penalty' : self.config['presence_penalty'],
                 'frequency_penalty': self.config['frequency_penalty'],
-                'stream': stream
+                'stream'           : stream
             }
 
             if self.config['enable_functions']:
@@ -271,9 +287,7 @@ class OpenAIHelper:
                     common_args['functions'] = self.plugin_manager.get_functions_specs()
                     common_args['function_call'] = 'auto'
             return await self.client.chat.completions.create(**common_args)
-            # return await openai.ChatCompletion.acreate(**common_args)
 
-        #except openai.error.RateLimitError as e:
         except openai.RateLimitError as e:
             raise e
 
@@ -288,18 +302,11 @@ class OpenAIHelper:
         arguments = ''
         if stream:
             async for item in response:
-                # if 'choices' in item and len(item.choices) > 0:
                 if len(item.choices) > 0:
                     first_choice = item.choices[0]
-                    # if 'delta' in first_choice \
-                    #        and 'function_call' in first_choice.delta:
-                    #    if 'name' in first_choice.delta.function_call:
                     if first_choice.delta and first_choice.delta.function_call:
                         if first_choice.delta.function_call.name:
                             function_name += first_choice.delta.function_call.name
-                    #    if 'arguments' in first_choice.delta.function_call:
-                    #        arguments += str(first_choice.delta.function_call.arguments)
-                    # elif 'finish_reason' in first_choice and first_choice.finish_reason == 'function_call':
                         if first_choice.delta.function_call.arguments:
                             arguments += first_choice.delta.function_call.arguments
                     elif first_choice.finish_reason and first_choice.finish_reason == 'function_call':
@@ -309,16 +316,11 @@ class OpenAIHelper:
                 else:
                     return response, plugins_used
         else:
-            # if 'choices' in response and len(response.choices) > 0:
             if len(response.choices) > 0:
                 first_choice = response.choices[0]
-                # if 'function_call' in first_choice.message:
-                #     if 'name' in first_choice.message.function_call:
                 if first_choice.message.function_call:
                     if first_choice.message.function_call.name:
                         function_name += first_choice.message.function_call.name
-                    # if 'arguments' in first_choice.message.function_call:
-                    #     arguments += str(first_choice.message.function_call.arguments)
                     if first_choice.message.function_call.arguments:
                         arguments += first_choice.message.function_call.arguments
                 else:
@@ -339,7 +341,6 @@ class OpenAIHelper:
             return function_response, plugins_used
 
         self.__add_function_call_to_history(chat_id=chat_id, function_name=function_name, content=function_response)
-        # response = await openai.ChatCompletion.acreate(
         response = await self.client.chat.completions.create(
             model=self.config['model'],
             messages=self.conversations[chat_id],
@@ -349,25 +350,26 @@ class OpenAIHelper:
         )
         return await self.__handle_function_call(chat_id, response, stream, times + 1, plugins_used)
 
-    async def generate_image(self, prompt: str) -> tuple[str, str]:
+    async def generate_image(self, prompt: str, size: str) -> tuple[str, str]:
         """
         Generates an image from the given prompt using DALL·E model.
         :param prompt: The prompt to send to the model
         :return: The image URL and the image size
         """
+        if size is None:
+            size = self.config['image_size']
+
         bot_language = self.config['bot_language']
         try:
-            # response = await openai.Image.acreate(
             response = await self.client.images.generate(
                 prompt=prompt,
                 n=1,
                 model=self.config['image_model'],
                 quality=self.config['image_quality'],
                 style=self.config['image_style'],
-                size=self.config['image_size']
+                size=size
             )
 
-            # if 'data' not in response or len(response['data']) == 0:
             if len(response.data) == 0:
                 logging.error(f'No response from GPT: {str(response)}')
                 raise Exception(
@@ -375,8 +377,29 @@ class OpenAIHelper:
                     f"⚠️\n{localized_text('try_again', bot_language)}."
                 )
 
-            # return response['data'][0]['url'], self.config['image_size']
             return response.data[0].url, self.config['image_size']
+        except Exception as e:
+            raise Exception(f"⚠️ _{localized_text('error', bot_language)}._ ⚠️\n{str(e)}") from e
+
+    async def generate_speech(self, text: str) -> tuple[any, int]:
+        """
+        Generates an audio from the given text using TTS model.
+        :param prompt: The text to send to the model
+        :return: The audio in bytes and the text size
+        """
+        bot_language = self.config['bot_language']
+        try:
+            response = await self.client.audio.speech.create(
+                model=self.config['tts_model'],
+                voice=self.config['tts_voice'],
+                input=text,
+                response_format='opus'
+            )
+
+            temp_file = io.BytesIO()
+            temp_file.write(response.read())
+            temp_file.seek(0)
+            return temp_file, len(text)
         except Exception as e:
             raise Exception(f"⚠️ _{localized_text('error', bot_language)}._ ⚠️\n{str(e)}") from e
 
@@ -387,9 +410,7 @@ class OpenAIHelper:
         try:
             with open(filename, "rb") as audio:
                 prompt_text = self.config['whisper_prompt']
-                # result = await openai.Audio.atranscribe("whisper-1", audio, prompt=prompt_text)
-                result = await self.client.audio.transcriptions.create(model="whisper-1", file=audio,
-                                                                       prompt=prompt_text)
+                result = await self.client.audio.transcriptions.create(model="whisper-1", file=audio, prompt=prompt_text)
                 return result.text
         except Exception as e:
             logging.exception(e)
@@ -490,33 +511,14 @@ class OpenAIHelper:
             {"role": "assistant", "content": "Summarize this conversation in 700 characters or less"},
             {"role": "user", "content": str(conversation)}
         ]
-        # response = await openai.ChatCompletion.acreate(
-        response=await self.client.chat.completions.create(
+
+        response = await self.client.chat.completions.create(
             model=self.config['model'],
             messages=messages,
             temperature=0.4
         )
-        # return response.choices[0]['message']['content']
-
         return response.choices[0].message.content
 
-    def __max_model_tokens(self):
-        base = 4096
-        if self.config['model'] in GPT_3_MODELS:
-            return base
-        if self.config['model'] in GPT_3_16K_MODELS:
-            return base * 4
-        if self.config['model'] in GPT_4_MODELS:
-            return base * 2
-        if self.config['model'] in GPT_4_32K_MODELS:
-            return base * 8
-        if self.config['model'] in GPT_4_128K_MODELS:
-            return base * 32
-        if self.config['model'] in GPT_4_VISION_MODELS:
-            return base * 31
-        raise NotImplementedError(
-            f"Max tokens for model {self.config['model']} is not implemented yet."
-        )
 
     # https://github.com/openai/openai-cookbook/blob/main/examples/How_to_count_tokens_with_tiktoken.ipynb
     def __count_tokens(self, messages) -> int:
@@ -531,7 +533,7 @@ class OpenAIHelper:
         except KeyError:
             encoding = tiktoken.get_encoding("gpt-3.5-turbo")
 
-        if model in GPT_3_MODELS:
+        if model in GPT_3_MODELS + GPT_3_16K_MODELS:
             tokens_per_message = 4  # every message follows <|start|>{role/name}\n{content}<|end|>\n
             tokens_per_name = -1  # if there's a name, the role is omitted
         elif model in GPT_4_MODELS + GPT_4_32K_MODELS + GPT_4_128K_MODELS + GPT_4_VISION_MODELS:
@@ -582,28 +584,3 @@ class OpenAIHelper:
             return num_tokens
         else:
             raise NotImplementedError(f"""unknown parameter detail={detail} for model {model}.""")
-
-
-
-    # No longer works as of July 21st 2023, as OpenAI has removed the billing API
-    # def get_billing_current_month(self):
-    #     """Gets billed usage for current month from OpenAI API.
-    #
-    #     :return: dollar amount of usage this month
-    #     """
-    #     headers = {
-    #         "Authorization": f"Bearer {openai.api_key}"
-    #     }
-    #     # calculate first and last day of current month
-    #     today = date.today()
-    #     first_day = date(today.year, today.month, 1)
-    #     _, last_day_of_month = monthrange(today.year, today.month)
-    #     last_day = date(today.year, today.month, last_day_of_month)
-    #     params = {
-    #         "start_date": first_day,
-    #         "end_date": last_day
-    #     }
-    #     response = requests.get("https://api.openai.com/dashboard/billing/usage", headers=headers, params=params)
-    #     billing_data = json.loads(response.text)
-    #     usage_month = billing_data["total_usage"] / 100  # convert cent amount to dollars
-    #     return usage_month

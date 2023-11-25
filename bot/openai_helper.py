@@ -37,19 +37,17 @@ def default_max_tokens(model: str) -> int:
     :param model: The model name
     :return: The default number of max tokens
     """
-    base = 4096
+    base = 1200
     if model in GPT_3_MODELS:
         return base
     elif model in GPT_4_MODELS:
         return base * 2
-    elif model in GPT_3_16K_MODELS:    
-        if model == "gpt-3.5-turbo-1106":
-            return 4096
+    elif model in GPT_3_16K_MODELS:
         return base * 4
     elif model in GPT_4_32K_MODELS:
-        return 32768
+        return base * 8
     elif model in GPT_4_128K_MODELS:
-        return 128000
+        return base * 32
     elif model in GPT_4_VISION_MODELS:
         return 4096
 
@@ -503,11 +501,11 @@ class OpenAIHelper:
         if self.config['model'] in GPT_4_MODELS:
             return base * 2
         if self.config['model'] in GPT_4_32K_MODELS:
-            return 32768
+            return base * 8
         if self.config['model'] in GPT_4_128K_MODELS:
-            return 128000
+            return base * 32
         if self.config['model'] in GPT_4_VISION_MODELS:
-            return 4096
+            return base * 31
         raise NotImplementedError(
             f"Max tokens for model {self.config['model']} is not implemented yet."
         )

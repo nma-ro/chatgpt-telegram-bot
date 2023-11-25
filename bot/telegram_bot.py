@@ -92,8 +92,8 @@ class ChatGPTTelegramBot:
         # chat_id = update.effective_chat.id
         user_id = update.message.from_user.id
         bot_language = self.config['bot_language']
-
-        current_model = user_model_selection.get(user_id, f'{self.config['model']}')
+        default_model = self.config['model']
+        current_model = user_model_selection.get(user_id, default_model)
         msg = f"`gpt-3.5-turbo`:\n" \
               f"🟢🟢🟢🟢🟢 - `Fast`\n" \
               f"🟡🟡🟡🟤🟤 - `Smart`\n" \
@@ -408,7 +408,8 @@ class ChatGPTTelegramBot:
         filename = update.message.effective_attachment.file_unique_id
 
         user_id = update.message.from_user.id
-        current_model = user_model_selection.get(user_id, 'gpt-3.5-turbo')
+        default_model = self.config['model']
+        current_model = user_model_selection.get(user_id, default_model)
 
         async def _execute():
             filename_mp3 = f'{filename}.mp3'
@@ -652,7 +653,8 @@ class ChatGPTTelegramBot:
         prompt = message_text(update.message)
         self.last_message[chat_id] = prompt
 
-        current_model = user_model_selection.get(user_id, 'gpt-3.5-turbo')
+        default_model = self.config['model']
+        current_model = user_model_selection.get(user_id, default_model)
 
         if is_group_chat(update):
             trigger_keyword = self.config['group_trigger_keyword']
@@ -868,7 +870,8 @@ class ChatGPTTelegramBot:
         answer_tr = localized_text("answer", bot_language)
         loading_tr = localized_text("loading", bot_language)
 
-        current_model = user_model_selection.get(user_id, 'gpt-3.5-turbo')
+        default_model = self.config['model']
+        current_model = user_model_selection.get(user_id, default_model)
 
         try:
             if callback_data.startswith(callback_data_suffix):

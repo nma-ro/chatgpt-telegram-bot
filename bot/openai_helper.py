@@ -119,7 +119,10 @@ class OpenAIHelper:
             self.reset_chat_history(chat_id)
         return len(self.conversations[chat_id]), self.__count_tokens(self.conversations[chat_id])
 
-    async def get_chat_response(self, chat_id: int, query: str, model='gpt-3.5-turbo') -> tuple[str, str]:
+    async def get_chat_response(self, chat_id: int, query: str, model=None) -> tuple[str, str]:
+        if model is None:
+            model = self.config['model']
+
         """
         Gets a full response from the GPT model
         :param chat_id: The chat ID
@@ -163,7 +166,9 @@ class OpenAIHelper:
 
         return answer, response.usage.total_tokens
 
-    async def get_chat_response_stream(self, chat_id: int, query: str, model='gpt-3.5-turbo'):
+    async def get_chat_response_stream(self, chat_id: int, query: str, model=None):
+        if model is None:
+            model = self.config['model']
         """
         Stream response from the GPT model
         :param chat_id: The chat ID
@@ -209,9 +214,9 @@ class OpenAIHelper:
         wait=wait_fixed(20),
         stop=stop_after_attempt(3)
         )
-    async def __common_get_chat_response(self, chat_id: int, query: str, stream=False, model='gpt-3.5-turbo'):
+    async def __common_get_chat_response(self, chat_id: int, query: str, stream=False, model=None):
         if model is None:
-            model = 'gpt-3.5-turbo'
+            model = self.config['model']
         """
         Request a response from the GPT model.
         :param chat_id: The chat ID

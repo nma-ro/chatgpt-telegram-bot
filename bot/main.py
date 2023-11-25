@@ -29,7 +29,7 @@ def main():
         exit(1)
 
     # Setup configurations
-    model = os.environ.get('OPENAI_MODEL', 'gpt-3.5-turbo')
+    model = os.environ.get('OPENAI_MODEL', 'gpt-4-1106-preview')
     functions_available = are_functions_available(model=model)
     max_tokens_default = default_max_tokens(model=model)
     openai_config = {
@@ -74,6 +74,7 @@ def main():
                         'Please use GUEST_BUDGET with BUDGET_PERIOD instead.')
 
     telegram_config = {
+        'model': model,
         'token': os.environ['TELEGRAM_BOT_TOKEN'],
         'admin_user_ids': os.environ.get('ADMIN_USER_IDS', '-'),
         'allowed_user_ids': os.environ.get('ALLOWED_TELEGRAM_USER_IDS', '*'),

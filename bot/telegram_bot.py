@@ -93,7 +93,7 @@ class ChatGPTTelegramBot:
         user_id = update.message.from_user.id
         bot_language = self.config['bot_language']
 
-        current_model = user_model_selection.get(user_id, 'gpt-3.5-turbo')
+        current_model = user_model_selection.get(user_id, f'{self.config['model']}')
         msg = f"`gpt-3.5-turbo`:\n" \
               f"🟢🟢🟢🟢🟢 - `Fast`\n" \
               f"🟡🟡🟡🟤🟤 - `Smart`\n" \

@@ -303,7 +303,7 @@ class ChatGPTTelegramBot:
     async def image_portrait(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         await self.image(update, context, size="1024x1792")
 
-    async def image(self, update: Update, context: ContextTypes.DEFAULT_TYPE, size: str):
+    async def image(self, update: Update, context: ContextTypes.DEFAULT_TYPE, size = None):
         """
         Generates an image for the given prompt using DALL·E APIs
         """

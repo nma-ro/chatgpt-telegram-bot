@@ -96,12 +96,12 @@ class ChatGPTTelegramBot:
         bot_language = self.config['bot_language']
         default_model = self.config['model']
         current_model = user_model_selection.get(user_id, default_model)
-        msg = f"`gpt-3.5-turbo`:\n" \
+        msg = f"`gpt-3.5-turbo series`:\n" \
               f"🟢🟢🟢🟢🟢 - `Fast`\n" \
               f"🟡🟡🟡🟤🟤 - `Smart`\n" \
               f"🟢🟢🟢🟢🟢 - `Cheap`\n" \
               f"---\n" \
-              f"`gpt-4`:\n" \
+              f"`gpt-4 series`:\n" \
               f"🟡🟡🟡🟤🟤 - `Fast`\n" \
               f"🟢🟢🟢🟢🟠 - `Smart`\n" \
               f"🟠🟠🟤🟤🟤 - `Cheap`\n" \
@@ -112,25 +112,39 @@ class ChatGPTTelegramBot:
               f"🟡🟡🟡🟤🟤 - `Cheap`\n" \
               f"---\n" \
               f"{localized_text('current_model', bot_language)}: `{current_model}`"
+
         selected = "✅"
+
         gpt_3_status = ""
+        gpt_3_16k_status = ""
         gpt_4_status = ""
+        gpt_4_32k_status = ""
         gpt_4_turbo_status = ""
         gpt_4_vision_status = ""
 
         if current_model == "gpt-3.5-turbo":
             gpt_3_status = selected
+        elif current_model == "gpt-3.5-turbo-16k":
+            gpt_3_16k_status = selected
+
         elif current_model == "gpt-4":
             gpt_4_status = selected
+        elif current_model == "gpt-4-32k":
+            gpt_4_32k_status = selected
+
         elif current_model == "gpt-4-1106-preview":
             gpt_4_turbo_status = selected
         elif current_model == "gpt-4-vision-preview":
             gpt_4_vision_status = selected
 
         reply_markup = InlineKeyboardMarkup([
-            [InlineKeyboardButton(text=f"{gpt_3_status} gpt-3.5-turbo", callback_data="model_gpt-3.5-turbo"),
-             InlineKeyboardButton(text=f"{gpt_4_status} gpt-4", callback_data="model_gpt-4")],
-            [InlineKeyboardButton(text=f"{gpt_4_turbo_status} gpt-4-turbo", callback_data="model_gpt-4-turbo")]#,
+            [InlineKeyboardButton(text=f"{gpt_3_status} gpt-3.5-turbo", callback_data="model_gpt-3.5-turbo"), InlineKeyboardButton(text=f"{gpt_3_16k_status} gpt-3.5-turbo-16k", callback_data="model_gpt-3.5-turbo-16k")],
+            [InlineKeyboardButton(text=f"{gpt_4_status} gpt-4", callback_data="model_gpt-4"), InlineKeyboardButton(text=f"{gpt_4_turbo_status} gpt-4-turbo-128k", callback_data="model_gpt-4-turbo")
+             #InlineKeyboardButton(text=f"{gpt_4_32k_status} gpt-4-32k", callback_data="model_gpt-4-32k")
+             ],
+            #[InlineKeyboardButton(text=f"{gpt_4_turbo_status} gpt-4-turbo", callback_data="model_gpt-4-turbo")]
+
+            #,
             # [InlineKeyboardButton(text=f"{gpt_4_vision_status} gpt-4-vision", callback_data="model_gpt-4-vision")]
         ])
         await update.effective_message.reply_text(
@@ -320,7 +334,7 @@ class ChatGPTTelegramBot:
             return
 
         logging.info(f'New image generation request received from user {update.message.from_user.name} '
-                     f'(id: {update.message.from_user.id})')
+                     f'(id: {update.message.from_user.id}) to the model DALL-E 3')
 
         async def _generate():
             try:
@@ -655,8 +669,6 @@ class ChatGPTTelegramBot:
         if not await self.check_allowed_and_within_budget(update, context):
             return
 
-        logging.info(
-                f'New message received from user {update.message.from_user.name} (id: {update.message.from_user.id})')
         chat_id = update.effective_chat.id
         user_id = update.message.from_user.id
         prompt = message_text(update.message)
@@ -664,6 +676,8 @@ class ChatGPTTelegramBot:
 
         default_model = self.config['model']
         current_model = user_model_selection.get(user_id, default_model)
+
+        logging.info(f'New message received from user {update.message.from_user.name} (id: {update.message.from_user.id}) to the model {current_model}')
 
         if is_group_chat(update):
             trigger_keyword = self.config['group_trigger_keyword']
@@ -1004,9 +1018,17 @@ class ChatGPTTelegramBot:
                 current_model = 'gpt-3.5-turbo'
                 user_model_selection[user_id] = current_model
                 await callback_query.edit_message_text(text=f"Model changed to: {current_model}")
+            elif callback_data == "model_gpt-3.5-turbo-16k":
+                current_model = 'gpt-3.5-turbo-16k'
+                user_model_selection[user_id] = current_model
+                await callback_query.edit_message_text(text=f"Model changed to: {current_model}")
 
             elif callback_data == "model_gpt-4":
                 current_model = 'gpt-4'
+                user_model_selection[user_id] = current_model
+                await callback_query.edit_message_text(text=f"Model changed to: {current_model}")
+            elif callback_data == "model_gpt-4-32k":
+                current_model = 'gpt-4-32k'
                 user_model_selection[user_id] = current_model
                 await callback_query.edit_message_text(text=f"Model changed to: {current_model}")
 

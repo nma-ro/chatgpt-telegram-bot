@@ -64,9 +64,9 @@ def max_model_tokens(model: str) -> int:
     if model in GPT_4_32K_MODELS:
         return base * 8
     if model in GPT_4_128K_MODELS:
-        return 128000
+        return base * 31
     if model in GPT_4_VISION_MODELS:
-        return 128000
+        return base * 31
     raise NotImplementedError(
         f"Max tokens for model {model} is not implemented yet."
     )
@@ -259,9 +259,9 @@ class OpenAIHelper:
             exceeded_max_history_size = len(self.conversations[chat_id]) > self.config['max_history_size']
 
             if exceeded_max_tokens or exceeded_max_history_size:
-                logging.info(f'Chat history for chat ID {chat_id} is too long. Summarising...')
+                logging.info(f'Chat history for chat ID {chat_id} is too long for model {model}. Summarising...')
                 try:
-                    summary = await self.__summarise(self.conversations[chat_id][:-1])
+                    summary = await self.__summarise(self.conversations[chat_id][:-1], model)
                     logging.debug(f'Summary: {summary}')
                     self.reset_chat_history(chat_id, self.conversations[chat_id][0]['content'])
                     self.__add_to_history(chat_id, role="assistant", content=summary)
@@ -501,7 +501,9 @@ class OpenAIHelper:
         """
         self.conversations[chat_id].append({"role": role, "content": content})
 
-    async def __summarise(self, conversation) -> str:
+    async def __summarise(self, conversation, model) -> str:
+        if model is None:
+            model = self.config['model']
         """
         Summarises the conversation history.
         :param conversation: The conversation history
@@ -513,7 +515,7 @@ class OpenAIHelper:
         ]
 
         response = await self.client.chat.completions.create(
-            model=self.config['model'],
+            model=model,
             messages=messages,
             temperature=0.4
         )

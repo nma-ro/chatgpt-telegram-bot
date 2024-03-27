@@ -132,7 +132,7 @@ class ChatGPTTelegramBot:
         elif current_model == "gpt-4-32k":
             gpt_4_32k_status = selected
 
-        elif current_model == "gpt-4-1106-preview":
+        elif current_model == "gpt-4-turbo-preview":
             gpt_4_turbo_status = selected
         elif current_model == "gpt-4-vision-preview":
             gpt_4_vision_status = selected
@@ -1033,7 +1033,7 @@ class ChatGPTTelegramBot:
                 await callback_query.edit_message_text(text=f"Model changed to: {current_model}")
 
             elif callback_data == "model_gpt-4-turbo":
-                current_model = 'gpt-4-1106-preview'
+                current_model = 'gpt-4-turbo-preview'
                 user_model_selection[user_id] = current_model
                 await callback_query.edit_message_text(text=f"Model changed to: {current_model}")
 

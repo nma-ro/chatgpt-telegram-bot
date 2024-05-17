@@ -202,6 +202,8 @@ class ChatGPTTelegramBot:
         remaining_budget = get_remaining_budget(self.config, self.usage, update)
         bot_language = self.config['bot_language']
 
+        text_disclaimer = "Amount in $ is accurate only for `gpt-3.5-turbo` model.\n"
+
         text_current_conversation = (
             f"*{localized_text('stats_conversation', bot_language)[0]}*:\n"
             f"{chat_messages} {localized_text('stats_conversation', bot_language)[1]}\n"
@@ -276,7 +278,7 @@ class ChatGPTTelegramBot:
         #         f"{self.openai.get_billing_current_month():.2f}"
         #     )
 
-        usage_text = text_current_conversation + text_today + text_month + text_budget
+        usage_text = text_disclaimer + text_current_conversation + text_today + text_month + text_budget
         await update.message.reply_text(usage_text, parse_mode=constants.ParseMode.MARKDOWN)
 
     async def resend(self, update: Update, context: ContextTypes.DEFAULT_TYPE):

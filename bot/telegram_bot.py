@@ -823,8 +823,8 @@ class ChatGPTTelegramBot:
                                 pass
                             try:
                                 sent_message = await update.effective_message.reply_text(
-                                        message_thread_id=get_thread_id(update),
-                                        text=content if len(content) > 0 else "..."
+                                    message_thread_id=get_thread_id(update),
+                                    text=content if len(content) > 0 else "..."
                                 )
                             except:
                                 pass

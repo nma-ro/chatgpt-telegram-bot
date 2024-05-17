@@ -64,8 +64,7 @@ def are_functions_available(model: str) -> bool:
     if model in ("gpt-3.5-turbo-0301", "gpt-4-0314", "gpt-4-32k-0314"):
         return False
     # Stable models will be updated to support functions on June 27, 2023
-    if model in ("gpt-3.5-turbo", "gpt-3.5-turbo-1106", "gpt-4", "gpt-4-32k","gpt-4-1106-preview", "gpt-4-0125-preview",
-                 "gpt-4-turbo-preview"):
+    if model in ("gpt-3.5-turbo", "gpt-3.5-turbo-1106", "gpt-4", "gpt-4-32k","gpt-4-1106-preview","gpt-4-0125-preview","gpt-4-turbo-preview"):
         return datetime.date.today() > datetime.date(2023, 6, 27)
     # Models gpt-3.5-turbo-0613 and  gpt-3.5-turbo-16k-0613 will be deprecated on June 13, 2024
     if model in ("gpt-3.5-turbo-0613", "gpt-3.5-turbo-16k-0613"):
@@ -261,12 +260,12 @@ class OpenAIHelper:
                     self.conversations[chat_id] = self.conversations[chat_id][-self.config['max_history_size']:]
 
             common_args = {
-                'model'            : model,
-                'messages'         : self.conversations[chat_id],
-                'temperature'      : self.config['temperature'],
-                'n'                : self.config['n_choices'],
-                'max_tokens'       : default_max_tokens(model=model),
-                'presence_penalty' : self.config['presence_penalty'],
+                'model': model if not self.conversations_vision[chat_id] else self.config['vision_model'],
+                'messages': self.conversations[chat_id],
+                'temperature': self.config['temperature'],
+                'n': self.config['n_choices'],
+                'max_tokens': self.config['max_tokens'],
+                'presence_penalty': self.config['presence_penalty'],
                 'frequency_penalty': self.config['frequency_penalty'],
                 'stream'           : stream
             }
@@ -632,7 +631,6 @@ class OpenAIHelper:
             {"role": "assistant", "content": "Summarize this conversation in 700 characters or less"},
             {"role": "user", "content": str(conversation)}
         ]
-
         response = await self.client.chat.completions.create(
             model=model,
             messages=messages,

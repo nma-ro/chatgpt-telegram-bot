@@ -96,17 +96,30 @@ class ChatGPTTelegramBot:
         bot_language = self.config['bot_language']
         default_model = self.config['model']
         current_model = user_model_selection.get(user_id, default_model)
-        msg = f"`gpt-3.5-turbo series`:\n" \
+        msg = f"See https://platform.openai.com/docs/models/overview for model info\n"\
+              f"and https://openai.com/pricing for current pricing.\n" \
+              f"`gpt-3.5-turbo series`:\n" \
               f"🟢🟢🟢🟢🟢 - `Fast`\n" \
               f"🟡🟡🟡🟤🟤 - `Smart`\n" \
               f"🟢🟢🟢🟢🟢 - `Cheap`\n" \
               f"---\n" \
+              f"`gpt-3.5-turbo-16k series`:\n" \
+              f"🟢🟢🟢🟢🟢 - `Fast`\n" \
+              f"🟡🟡🟡🟤🟤 - `Smart`\n" \
+              f"🟢🟢🟢🟢🟤 - `Cheap`\n" \
+              f"(will be [deprecated](https://platform.openai.com/docs/deprecations) on 2024-06-13)\n" \
+              f"---\n" \
               f"`gpt-4 series`:\n" \
               f"🟡🟡🟡🟤🟤 - `Fast`\n" \
               f"🟢🟢🟢🟢🟠 - `Smart`\n" \
-              f"🟠🟠🟤🟤🟤 - `Cheap`\n" \
+              f"🟠🟤🟤🟤🟤 - `Cheap`\n" \
               f"---\n" \
-              f"`gpt-4-turbo`:\n" \
+              f"`gpt-4-turbo series`:\n" \
+              f"🟢🟢🟢🟢🟤 - `Fast`\n" \
+              f"🟢🟢🟢🟢🟢 - `Smart`\n" \
+              f"🟡🟡🟡🟤🟤 - `Cheap`\n" \
+              f"---\n" \
+              f"`gpt-4-turbo-preview series`:\n" \
               f"🟢🟢🟢🟢🟤 - `Fast`\n" \
               f"🟢🟢🟢🟢🟢 - `Smart`\n" \
               f"🟡🟡🟡🟤🟤 - `Cheap`\n" \
@@ -120,31 +133,35 @@ class ChatGPTTelegramBot:
         gpt_4_status = ""
         gpt_4_32k_status = ""
         gpt_4_turbo_status = ""
+        gpt_4_turbo_preview_status = ""
         gpt_4_vision_status = ""
 
         if current_model == "gpt-3.5-turbo":
             gpt_3_status = selected
         elif current_model == "gpt-3.5-turbo-16k":
             gpt_3_16k_status = selected
-
         elif current_model == "gpt-4":
             gpt_4_status = selected
         elif current_model == "gpt-4-32k":
             gpt_4_32k_status = selected
-
-        elif current_model == "gpt-4-turbo-preview":
+        elif current_model == "gpt-4-turbo":
             gpt_4_turbo_status = selected
+        elif current_model == "gpt-4-turbo-preview":
+            gpt_4_turbo_preview_status = selected
         elif current_model == "gpt-4-vision-preview":
             gpt_4_vision_status = selected
 
         reply_markup = InlineKeyboardMarkup([
-            [InlineKeyboardButton(text=f"{gpt_3_status} gpt-3.5-turbo", callback_data="model_gpt-3.5-turbo"), InlineKeyboardButton(text=f"{gpt_3_16k_status} gpt-3.5-turbo-16k", callback_data="model_gpt-3.5-turbo-16k")],
-            [InlineKeyboardButton(text=f"{gpt_4_status} gpt-4", callback_data="model_gpt-4"), InlineKeyboardButton(text=f"{gpt_4_turbo_status} gpt-4-turbo-128k", callback_data="model_gpt-4-turbo")
-             #InlineKeyboardButton(text=f"{gpt_4_32k_status} gpt-4-32k", callback_data="model_gpt-4-32k")
+            [InlineKeyboardButton(text=f"{gpt_3_status} gpt-3.5-turbo", callback_data="model_gpt-3.5-turbo"),
+             InlineKeyboardButton(text=f"{gpt_3_16k_status} gpt-3.5-turbo-16k", callback_data="model_gpt-3.5-turbo-16k")],
+            [InlineKeyboardButton(text=f"{gpt_4_status} gpt-4", callback_data="model_gpt-4"),
+             InlineKeyboardButton(text=f"{gpt_4_turbo_status} gpt-4-turbo", callback_data="model_gpt-4-turbo"),
+             InlineKeyboardButton(text=f"{gpt_4_turbo_preview_status} gpt-4-turbo-preview", callback_data="model_gpt-4-turbo-preview"),
+             # InlineKeyboardButton(text=f"{gpt_4_32k_status} gpt-4-32k", callback_data="model_gpt-4-32k")
              ],
-            #[InlineKeyboardButton(text=f"{gpt_4_turbo_status} gpt-4-turbo", callback_data="model_gpt-4-turbo")]
+            # [InlineKeyboardButton(text=f"{gpt_4_turbo_status} gpt-4-turbo", callback_data="model_gpt-4-turbo")]
 
-            #,
+            # ,
             # [InlineKeyboardButton(text=f"{gpt_4_vision_status} gpt-4-vision", callback_data="model_gpt-4-vision")]
         ])
         await update.effective_message.reply_text(
@@ -184,14 +201,14 @@ class ChatGPTTelegramBot:
         chat_messages, chat_token_length = self.openai.get_conversation_stats(chat_id)
         remaining_budget = get_remaining_budget(self.config, self.usage, update)
         bot_language = self.config['bot_language']
-        
+
         text_current_conversation = (
             f"*{localized_text('stats_conversation', bot_language)[0]}*:\n"
             f"{chat_messages} {localized_text('stats_conversation', bot_language)[1]}\n"
             f"{chat_token_length} {localized_text('stats_conversation', bot_language)[2]}\n"
             f"----------------------------\n"
         )
-        
+
         # Check if image generation is enabled and, if so, generate the image statistics for today
         text_today_images = ""
         if self.config.get('enable_image_generation', False):
@@ -200,7 +217,7 @@ class ChatGPTTelegramBot:
         text_today_tts = ""
         if self.config.get('enable_tts_generation', False):
             text_today_tts = f"{characters_today} {localized_text('stats_tts', bot_language)}\n"
-        
+
 
         text_today_vision = ""
         if self.config.get('enable_vision', False):
@@ -217,7 +234,7 @@ class ChatGPTTelegramBot:
             f"{localized_text('stats_total', bot_language)}{current_cost['cost_today']:.2f}\n"
             f"----------------------------\n"
         )
-        
+
         text_month_images = ""
         if self.config.get('enable_image_generation', False):
             text_month_images = f"{images_month} {localized_text('stats_images', bot_language)}\n"
@@ -225,7 +242,7 @@ class ChatGPTTelegramBot:
         text_month_tts = ""
         if self.config.get('enable_tts_generation', False):
             text_month_tts = f"{characters_month} {localized_text('stats_tts', bot_language)}\n"
-        
+
         text_month_vision = ""
         if self.config.get('enable_vision', False):
             text_month_vision = f"{vision_month} {localized_text('stats_vision', bot_language)}\n"
@@ -1018,6 +1035,7 @@ class ChatGPTTelegramBot:
                 current_model = 'gpt-3.5-turbo'
                 user_model_selection[user_id] = current_model
                 await callback_query.edit_message_text(text=f"Model changed to: {current_model}")
+
             elif callback_data == "model_gpt-3.5-turbo-16k":
                 current_model = 'gpt-3.5-turbo-16k'
                 user_model_selection[user_id] = current_model
@@ -1027,12 +1045,18 @@ class ChatGPTTelegramBot:
                 current_model = 'gpt-4'
                 user_model_selection[user_id] = current_model
                 await callback_query.edit_message_text(text=f"Model changed to: {current_model}")
+
             elif callback_data == "model_gpt-4-32k":
                 current_model = 'gpt-4-32k'
                 user_model_selection[user_id] = current_model
                 await callback_query.edit_message_text(text=f"Model changed to: {current_model}")
 
             elif callback_data == "model_gpt-4-turbo":
+                current_model = 'gpt-4-turbo'
+                user_model_selection[user_id] = current_model
+                await callback_query.edit_message_text(text=f"Model changed to: {current_model}")
+
+            elif callback_data == "model_gpt-4-turbo-preview":
                 current_model = 'gpt-4-turbo-preview'
                 user_model_selection[user_id] = current_model
                 await callback_query.edit_message_text(text=f"Model changed to: {current_model}")

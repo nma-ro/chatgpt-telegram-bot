@@ -121,6 +121,11 @@ class ChatGPTTelegramBot:
               f"🟢🟢🟢🟢🟢 - `Smart`\n" \
               f"🟡🟡🟡🟤🟤 - `Cheap`\n" \
               f"---\n" \
+              f"`gpt-4o`:\n" \
+              f"🟢🟢🟢🟢🟤 - `Fast`\n" \
+              f"🟢🟢🟢🟢🟢 - `Smart`\n" \
+              f"🟢🟢🟢🟢🟤 - `Cheap`\n" \
+              f"---\n" \
               f"{localized_text('current_model', bot_language)}: `{current_model}`"
 
         selected = "✅"
@@ -132,6 +137,7 @@ class ChatGPTTelegramBot:
         gpt_4_turbo_status = ""
         gpt_4_turbo_preview_status = ""
         gpt_4_vision_status = ""
+        gpt_4o_status = ""
 
         if current_model == "gpt-3.5-turbo":
             gpt_3_status = selected
@@ -147,6 +153,8 @@ class ChatGPTTelegramBot:
             gpt_4_turbo_preview_status = selected
         elif current_model == "gpt-4-vision-preview":
             gpt_4_vision_status = selected
+        elif current_model == "gpt-4o":
+            gpt_4o_status = selected
 
         reply_markup = InlineKeyboardMarkup([
             [InlineKeyboardButton(text=f"{gpt_3_status} gpt-3.5-turbo", callback_data="model_gpt-3.5-turbo"),
@@ -154,6 +162,7 @@ class ChatGPTTelegramBot:
             [InlineKeyboardButton(text=f"{gpt_4_status} gpt-4", callback_data="model_gpt-4"),
              InlineKeyboardButton(text=f"{gpt_4_turbo_status} gpt-4-turbo", callback_data="model_gpt-4-turbo"),
              InlineKeyboardButton(text=f"{gpt_4_turbo_preview_status} gpt-4-turbo-preview", callback_data="model_gpt-4-turbo-preview"),
+             InlineKeyboardButton(text=f"{gpt_4o_status} gpt-4o", callback_data="model_gpt-4o"),
              # InlineKeyboardButton(text=f"{gpt_4_32k_status} gpt-4-32k", callback_data="model_gpt-4-32k")
              ],
             # [InlineKeyboardButton(text=f"{gpt_4_turbo_status} gpt-4-turbo", callback_data="model_gpt-4-turbo")]
@@ -1131,6 +1140,11 @@ class ChatGPTTelegramBot:
 
             elif callback_data == "model_gpt-4-vision":
                 current_model = 'gpt-4-vision-preview'
+                user_model_selection[user_id] = current_model
+                await callback_query.edit_message_text(text=f"Model changed to: {current_model}")
+
+            elif callback_data == "model_gpt-4o":
+                current_model = 'gpt-4o'
                 user_model_selection[user_id] = current_model
                 await callback_query.edit_message_text(text=f"Model changed to: {current_model}")
 

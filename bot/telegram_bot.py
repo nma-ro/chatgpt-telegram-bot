@@ -130,46 +130,19 @@ class ChatGPTTelegramBot:
 
         selected = "✅"
 
-        gpt_3_status = ""
-        gpt_3_16k_status = ""
-        gpt_4_status = ""
-        gpt_4_32k_status = ""
-        gpt_4_turbo_status = ""
-        gpt_4_turbo_preview_status = ""
-        gpt_4_vision_status = ""
-        gpt_4o_status = ""
+        gpt_models_list = ["gpt-3.5-turbo", "gpt-3.5-turbo-16k", "gpt-4", "gpt-4-32k", "gpt-4-turbo", "gpt-4-turbo-preview", "gpt-4-vision-preview", "gpt-4o"]
 
-        if current_model == "gpt-3.5-turbo":
-            gpt_3_status = selected
-        elif current_model == "gpt-3.5-turbo-16k":
-            gpt_3_16k_status = selected
-        elif current_model == "gpt-4":
-            gpt_4_status = selected
-        elif current_model == "gpt-4-32k":
-            gpt_4_32k_status = selected
-        elif current_model == "gpt-4-turbo":
-            gpt_4_turbo_status = selected
-        elif current_model == "gpt-4-turbo-preview":
-            gpt_4_turbo_preview_status = selected
-        elif current_model == "gpt-4-vision-preview":
-            gpt_4_vision_status = selected
-        elif current_model == "gpt-4o":
-            gpt_4o_status = selected
+        gpt_models = {}
+        for gpt_model in gpt_models_list:
+            gpt_models.update({gpt_model: {"status": ""}})
+        gpt_models[current_model]["status"] = selected
 
-        reply_markup = InlineKeyboardMarkup([
-            [InlineKeyboardButton(text=f"{gpt_3_status} gpt-3.5-turbo", callback_data="model_gpt-3.5-turbo"),
-             InlineKeyboardButton(text=f"{gpt_3_16k_status} gpt-3.5-turbo-16k", callback_data="model_gpt-3.5-turbo-16k")],
-            [InlineKeyboardButton(text=f"{gpt_4_status} gpt-4", callback_data="model_gpt-4"),
-             InlineKeyboardButton(text=f"{gpt_4_turbo_status} gpt-4-turbo", callback_data="model_gpt-4-turbo"),
-             InlineKeyboardButton(text=f"{gpt_4_turbo_preview_status} gpt-4-turbo-preview", callback_data="model_gpt-4-turbo-preview"),
-             InlineKeyboardButton(text=f"{gpt_4o_status} gpt-4o", callback_data="model_gpt-4o"),
-             # InlineKeyboardButton(text=f"{gpt_4_32k_status} gpt-4-32k", callback_data="model_gpt-4-32k")
-             ],
-            # [InlineKeyboardButton(text=f"{gpt_4_turbo_status} gpt-4-turbo", callback_data="model_gpt-4-turbo")]
+        model_selection_buttons = []
 
-            # ,
-            # [InlineKeyboardButton(text=f"{gpt_4_vision_status} gpt-4-vision", callback_data="model_gpt-4-vision")]
-        ])
+        for k, v in gpt_models.items():
+            model_selection_buttons.append([InlineKeyboardButton(text=f"{v['status']} {k}", callback_data=f"model:{k}")])
+        reply_markup = InlineKeyboardMarkup(model_selection_buttons)
+
         await update.effective_message.reply_text(
                 message_thread_id=get_thread_id(update),
                 reply_to_message_id=get_reply_to_message_id(self.config, update),
@@ -216,7 +189,7 @@ class ChatGPTTelegramBot:
             f"{chat_token_length} {localized_text('stats_conversation', bot_language)[2]}\n"
             "----------------------------\n"
         )
-        
+
         # Check if image generation is enabled and, if so, generate the image statistics for today
         text_today_images = ""
         if self.config.get('enable_image_generation', False):
@@ -229,7 +202,7 @@ class ChatGPTTelegramBot:
         text_today_tts = ""
         if self.config.get('enable_tts_generation', False):
             text_today_tts = f"{characters_today} {localized_text('stats_tts', bot_language)}\n"
-        
+
         text_today = (
             f"*{localized_text('usage_today', bot_language)}:*\n"
             f"{tokens_today} {localized_text('stats_tokens', bot_language)}\n"
@@ -241,7 +214,7 @@ class ChatGPTTelegramBot:
             f"{localized_text('stats_total', bot_language)}{current_cost['cost_today']:.2f}\n"
             "----------------------------\n"
         )
-        
+
         text_month_images = ""
         if self.config.get('enable_image_generation', False):
             text_month_images = f"{images_month} {localized_text('stats_images', bot_language)}\n"
@@ -253,7 +226,7 @@ class ChatGPTTelegramBot:
         text_month_tts = ""
         if self.config.get('enable_tts_generation', False):
             text_month_tts = f"{characters_month} {localized_text('stats_tts', bot_language)}\n"
-        
+
         # Check if image generation is enabled and, if so, generate the image statistics for the month
         text_month = (
             f"*{localized_text('usage_month', bot_language)}:*\n"
@@ -983,6 +956,7 @@ class ChatGPTTelegramBot:
         inline_message_id = update.callback_query.inline_message_id
         name = update.callback_query.from_user.name
         callback_data_suffix = "gpt:"
+        callback_model_selection_suffix = "model:"
         query = ""
         bot_language = self.config['bot_language']
         answer_tr = localized_text("answer", bot_language)
@@ -1108,43 +1082,8 @@ class ChatGPTTelegramBot:
 
                 add_chat_request_to_usage_tracker(self.usage, self.config, user_id, total_tokens)
 
-            elif callback_data == "model_gpt-3.5-turbo":
-                current_model = 'gpt-3.5-turbo'
-                user_model_selection[user_id] = current_model
-                await callback_query.edit_message_text(text=f"Model changed to: {current_model}")
-
-            elif callback_data == "model_gpt-3.5-turbo-16k":
-                current_model = 'gpt-3.5-turbo-16k'
-                user_model_selection[user_id] = current_model
-                await callback_query.edit_message_text(text=f"Model changed to: {current_model}")
-
-            elif callback_data == "model_gpt-4":
-                current_model = 'gpt-4'
-                user_model_selection[user_id] = current_model
-                await callback_query.edit_message_text(text=f"Model changed to: {current_model}")
-
-            elif callback_data == "model_gpt-4-32k":
-                current_model = 'gpt-4-32k'
-                user_model_selection[user_id] = current_model
-                await callback_query.edit_message_text(text=f"Model changed to: {current_model}")
-
-            elif callback_data == "model_gpt-4-turbo":
-                current_model = 'gpt-4-turbo'
-                user_model_selection[user_id] = current_model
-                await callback_query.edit_message_text(text=f"Model changed to: {current_model}")
-
-            elif callback_data == "model_gpt-4-turbo-preview":
-                current_model = 'gpt-4-turbo-preview'
-                user_model_selection[user_id] = current_model
-                await callback_query.edit_message_text(text=f"Model changed to: {current_model}")
-
-            elif callback_data == "model_gpt-4-vision":
-                current_model = 'gpt-4-vision-preview'
-                user_model_selection[user_id] = current_model
-                await callback_query.edit_message_text(text=f"Model changed to: {current_model}")
-
-            elif callback_data == "model_gpt-4o":
-                current_model = 'gpt-4o'
+            elif callback_data.startswith(callback_model_selection_suffix):
+                current_model = callback_data.removeprefix(callback_model_selection_suffix)
                 user_model_selection[user_id] = current_model
                 await callback_query.edit_message_text(text=f"Model changed to: {current_model}")
 

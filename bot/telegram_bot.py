@@ -95,16 +95,11 @@ class ChatGPTTelegramBot:
         current_model = user_model_selection.get(user_id, default_model)
         msg = f"See https://platform.openai.com/docs/models/overview for model info\n"\
               f"and https://openai.com/pricing for current pricing.\n" \
+              f"---\n" \
               f"`gpt-3.5-turbo series`:\n" \
               f"🟢🟢🟢🟢🟢 - `Fast`\n" \
               f"🟡🟡🟡🟤🟤 - `Smart`\n" \
               f"🟢🟢🟢🟢🟢 - `Cheap`\n" \
-              f"---\n" \
-              f"`gpt-3.5-turbo-16k series`:\n" \
-              f"🟢🟢🟢🟢🟢 - `Fast`\n" \
-              f"🟡🟡🟡🟤🟤 - `Smart`\n" \
-              f"🟢🟢🟢🟢🟤 - `Cheap`\n" \
-              f"(will be [deprecated](https://platform.openai.com/docs/deprecations) on 2024-06-13)\n" \
               f"---\n" \
               f"`gpt-4 series`:\n" \
               f"🟡🟡🟡🟤🟤 - `Fast`\n" \
@@ -126,11 +121,16 @@ class ChatGPTTelegramBot:
               f"🟢🟢🟢🟢🟢 - `Smart`\n" \
               f"🟢🟢🟢🟢🟤 - `Cheap`\n" \
               f"---\n" \
+              f"`gpt-4o-mini`:\n" \
+              f"🟢🟢🟢🟢🟢 - `Fast`\n" \
+              f"🟢🟢🟢🟢🟤 - `Smart`\n" \
+              f"🟢🟢🟢🟢🟢 - `Cheap`\n" \
+              f"---\n" \
               f"{localized_text('current_model', bot_language)}: `{current_model}`"
 
         selected = "✅"
 
-        gpt_models_list = ["gpt-3.5-turbo", "gpt-3.5-turbo-16k", "gpt-4", "gpt-4-32k", "gpt-4-turbo", "gpt-4-turbo-preview", "gpt-4-vision-preview", "gpt-4o"]
+        gpt_models_list = ["gpt-3.5-turbo", "gpt-4", "gpt-4-32k", "gpt-4-turbo", "gpt-4-turbo-preview", "gpt-4-vision-preview", "gpt-4o", "gpt-4o-mini"]
 
         gpt_models = {}
         for gpt_model in gpt_models_list:
